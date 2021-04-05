@@ -1,12 +1,17 @@
 # DREAMROQ-WORKING-SOUND-
 Update working sound on  kos1.3
 29fps
+==============
 Ian micheal update fix request no black screen working sound 
+================================================================
 Geting any thing to sync will be hard it all has to be done with encoding
+
 this will try but will run it 29fps flat out all the time 
 Included batch files to convert mp4 or avi that has been converted to 512x512 to ROQ with sound that works with this player
-this is a sample player it can be used for fmv in your game and as intro lib to show your fmv intro then boot your main
+this is a sample player it can be used for fmv in your game and as an intro lib to show your fmv intro then boot your main
 game etc.. 
+
+request filled
 License
 =======
 Dreamroq is meant to be license-compatible with the rest of the KallistiOS
