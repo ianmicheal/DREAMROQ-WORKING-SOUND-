@@ -17,6 +17,7 @@ Files must be
 =====================
 512x512 22khz before using the encoder and batches files use shana encoder it's free
 mp4 or avi batch files are included.. you cant use any size other then 512x512 in and out..
+
 License
 =======
 Dreamroq is meant to be license-compatible with the rest of the KallistiOS
