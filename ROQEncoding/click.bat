@@ -1,0 +1,1 @@
+ffmpeg -i movie.avi -r 29 -s 512x512  movie.roq
