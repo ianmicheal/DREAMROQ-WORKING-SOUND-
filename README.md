@@ -1,5 +1,5 @@
 # DREAMROQ-WORKING-SOUND-
-Update working sound on kos2.0 kos1.3
+Update working sound on  kos1.3
 29fps
 Ian micheal update fix request no black screen working sound 
 
