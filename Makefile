@@ -1,5 +1,8 @@
+
+
+
 # Put the filename of the output binary here
-TARGET = dreamroq-player.elf
+TARGET = dreamroq.elf
 
 # List all of your C files here, but change the extension to ".o"
 OBJS = dreamroq-player.o dreamroqlib.o

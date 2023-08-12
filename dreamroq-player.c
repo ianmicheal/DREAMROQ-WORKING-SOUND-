@@ -5,11 +5,18 @@
  * This is the sample Dreamcast player app, designed to be run under
  * the KallistiOS operating system.
  */
+/*
+	Name: Iaan micheal
+	Copyright: 
+	Author: Ian micheal
+	Date: 12/08/23 05:17
+	Description: kos 2.0 up port threading fix and wrappers and all warnings fixed
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <kos.h>
 #include <dc/pvr.h>
 #include <dc/maple.h>
 #include <dc/maple/controller.h>
@@ -20,57 +27,59 @@
 
 #include "dc_timer.h"
 #include "snddrv.h"
+#include <dc/sound/sound.h>
+#include <stdio.h>
 
 /* Audio Global variables */
-#define PCM_BUF_SIZE 1024*1024
+#define PCM_BUF_SIZE (1024 * 1024)
 static unsigned char *pcm_buf = NULL;
 static int pcm_size = 0;
 static int audio_init = 0;
-static mutex_t * pcm_mut;
+static mutex_t pcm_mut = MUTEX_INITIALIZER;
 
 /* Video Global variables */
 static pvr_ptr_t textures[2];
 static int current_frame = 0;
 static int graphics_initialized = 0;
 static float video_delay;
-static int frame=0;
+static int frame = 0;
 static const float VIDEO_RATE = 30.0f; /* Video FPS */
 
 static void snd_thd()
 {
     do
     {
-        /* Wait for AICA Driver to request some samples */   
-        while( snddrv.buf_status != SNDDRV_STATUS_NEEDBUF ) 
-            thd_pass();    
+        /* Wait for AICA Driver to request some samples */
+        while (snddrv.buf_status != SNDDRV_STATUS_NEEDBUF)
+            thd_pass();
 
         /* Wait for RoQ Decoder to produce enough samples */
-        while( pcm_size < snddrv.pcm_needed )
+        while (pcm_size < snddrv.pcm_needed)
         {
-            if( snddrv.dec_status == SNDDEC_STATUS_DONE )
-                goto done;   
-            thd_pass();    
+            if (snddrv.dec_status == SNDDEC_STATUS_DONE)
+                goto done;
+            thd_pass();
         }
 
-        /* Copy the Requested PCM Samples to the AICA Driver */          
-        mutex_lock( pcm_mut );
-        memcpy( snddrv.pcm_buffer, pcm_buf, snddrv.pcm_needed );
-        
+        /* Copy the Requested PCM Samples to the AICA Driver */
+        mutex_lock(&pcm_mut);
+        memcpy(snddrv.pcm_buffer, pcm_buf, snddrv.pcm_needed);
+
         /* Shift the Remaining PCM Samples Back */
         pcm_size -= snddrv.pcm_needed;
-        memmove( pcm_buf, pcm_buf+snddrv.pcm_needed, pcm_size );
-        mutex_unlock( pcm_mut );
-         
-        /* Let the AICA Driver know the PCM samples are ready */ 
+        memmove(pcm_buf, pcm_buf + snddrv.pcm_needed, pcm_size);
+        mutex_unlock(&pcm_mut);
+
+        /* Let the AICA Driver know the PCM samples are ready */
         snddrv.buf_status = SNDDRV_STATUS_HAVEBUF;
-                    
-    } while( snddrv.dec_status == SNDDEC_STATUS_STREAMING );     
-    done:
+
+    } while (snddrv.dec_status == SNDDEC_STATUS_STREAMING);
+done:
     snddrv.dec_status = SNDDEC_STATUS_NULL;
 }
 
 static int render_cb(unsigned short *buf, int width, int height, int stride,
-    int texture_height)
+                     int texture_height)
 {
     pvr_poly_cxt_t cxt;
     static pvr_poly_hdr_t hdr[2];
@@ -104,11 +113,11 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         br_y = ul_y + ratio * texture_height;
 
         /* Things common to vertices */
-        vert[0].z     = vert[1].z     = vert[2].z     = vert[3].z     = 1.0f; 
-        vert[0].argb  = vert[1].argb  = vert[2].argb  = vert[3].argb  = PVR_PACK_COLOR(1.0f, 1.0f, 1.0f, 1.0f);    
-        vert[0].oargb = vert[1].oargb = vert[2].oargb = vert[3].oargb = 0;  
-        vert[0].flags = vert[1].flags = vert[2].flags = PVR_CMD_VERTEX;         
-        vert[3].flags = PVR_CMD_VERTEX_EOL; 
+        vert[0].z = vert[1].z = vert[2].z = vert[3].z = 1.0f;
+        vert[0].argb = vert[1].argb = vert[2].argb = vert[3].argb = PVR_PACK_COLOR(1.0f, 1.0f, 1.0f, 1.0f);
+        vert[0].oargb = vert[1].oargb = vert[2].oargb = vert[3].oargb = 0;
+        vert[0].flags = vert[1].flags = vert[2].flags = PVR_CMD_VERTEX;
+        vert[3].flags = PVR_CMD_VERTEX_EOL;
 
         vert[0].x = ul_x;
         vert[0].y = ul_y;
@@ -129,8 +138,8 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         vert[3].y = br_y;
         vert[3].u = 1.0;
         vert[3].v = 1.0;
-        
-        /* Get current hardware timing */    
+
+        /* Get current hardware timing */
         video_delay = (float)dc_get_time();
 
         graphics_initialized = 1;
@@ -138,9 +147,9 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     /* send the video frame as a texture over to video RAM */
     pvr_txr_load(buf, textures[current_frame], stride * texture_height * 2);
-              
+
     /* Delay the frame to match Frame Rate */
-    frame_delay( VIDEO_RATE, video_delay, ++frame );
+    frame_delay(VIDEO_RATE, video_delay, ++frame);
 
     pvr_wait_ready();
     pvr_scene_begin();
@@ -163,84 +172,88 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
     return ROQ_SUCCESS;
 }
 
-static int audio_cb( unsigned char *buf, int size, int channels)
+static void *snd_thd_wrapper(void *arg)
 {
-    if(!audio_init)
+    snd_thd();  // Call the actual audio thread function
+    return NULL;
+}
+
+static int audio_cb(unsigned char *buf, int size, int channels)
+{
+    if (!audio_init)
     {
         /* allocate PCM buffer */
         pcm_buf = malloc(PCM_BUF_SIZE);
-        if( pcm_buf == NULL )
+        if (pcm_buf == NULL)
             return ROQ_NO_MEMORY;
+
+        /* Start AICA Driver */
+        snddrv_start(22050, channels);
+        snddrv.dec_status = SNDDEC_STATUS_STREAMING;
+
+          /* Create a thread to stream the samples to the AICA */
+        thd_create(0, snd_thd_wrapper, NULL);
         
-        /* Start AICA Driver */ 
-        snddrv_start( 22050, channels ); 
-        snddrv.dec_status = SNDDEC_STATUS_STREAMING; 
-        
-        /* Create a thread to stream the samples to the AICA */
-        thd_create( snd_thd, NULL );
-        
-        /* Create a mutex to handle the double-threaded buffer */
-        pcm_mut = mutex_create();
-        
-        audio_init=1;
+            //printf("SNDDRV: Creating Driver Thread\n");
+
+
+        audio_init = 1;
     }
 
     /* Copy the decoded PCM samples to our local PCM buffer */
-    mutex_lock( pcm_mut );          
-    memcpy(  pcm_buf+pcm_size, buf, size);
+    mutex_lock(&pcm_mut);
+    memcpy(pcm_buf + pcm_size, buf, size);
     pcm_size += size;
-    mutex_unlock( pcm_mut );
-       
-    return ROQ_SUCCESS;    
+    mutex_unlock(&pcm_mut);
+
+    return ROQ_SUCCESS;
 }
 
 static int quit_cb()
 {
-    cont_cond_t cont;
+    MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, st)
+    if (st->buttons & CONT_START)
+        goto exit_loop;
+    MAPLE_FOREACH_END()
 
-    /* check controller state */
-    if (cont_get_cond(maple_first_controller(), &cont))
-    {
-        /* controller read error */
-        return 1;
-    }
-    cont.buttons = ~cont.buttons;
-    return (cont.buttons & CONT_START);
+    return 0;
+
+exit_loop:
+    return 1;
 }
 
 int main()
 {
-    int status=0;
+    int status = 0;
 
     vid_set_mode(DM_640x480, PM_RGB565);
     pvr_init_defaults();
 
-    printf("dreamroq_play(C) Multimedia Mike Melanson & Josh PH3NOM Pearson 2011\n");  
-    printf("dreamroq_play(C) Ian micheal Kos2.0 sound fix\n");  
+    printf("dreamroq_play(C) Multimedia Mike Melanson & Josh PH3NOM Pearson 2011\n");
+    printf("dreamroq_play(C) Ian micheal Kos2.0 sound fix and threading\n");
 
     /* To disable a callback, simply replace the function name by 0 */
     status = dreamroq_play("/cd/movie.roq", 0, render_cb, audio_cb, quit_cb);
 
-    printf("dreamroq_play() status = %d\n", status);  
-    
-    if(audio_init)
-    {
-      snddrv.dec_status = SNDDEC_STATUS_DONE;  /* Singal audio thread to stop */
-      while( snddrv.dec_status != SNDDEC_STATUS_NULL )
-         thd_pass();     
-      free( pcm_buf );
-      pcm_buf = NULL;
-      pcm_size = 0;  
-      mutex_destroy(pcm_mut);                  /* Destroy the PCM mutex */
-      snddrv_exit();                           /* Exit the AICA Driver */  
-    } 
+    printf("dreamroq_play() status = %d\n", status);
 
-    if(graphics_initialized)
+    if (audio_init)
     {
-        pvr_mem_free( textures[0] );           /* Free the PVR memory */
-        pvr_mem_free( textures[1] );
-    } 
-       
+        snddrv.dec_status = SNDDEC_STATUS_DONE; /* Signal audio thread to stop */
+        while (snddrv.dec_status != SNDDEC_STATUS_NULL)
+            thd_pass();
+        free(pcm_buf);
+        pcm_buf = NULL;
+        pcm_size = 0;
+    }
+
+    if (graphics_initialized)
+    {
+        pvr_mem_free(textures[0]); /* Free the PVR memory */
+        pvr_mem_free(textures[1]);
+    }
+
     return 0;
 }
+
 
