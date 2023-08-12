@@ -123,7 +123,7 @@ static int snddrv_thread() {
 
 	return snddrv.drv_status;
 }
-
+// Ian micheal fixed all threading problems
 /* Wrapper function for snddrv_thread */
 static void *snddrv_thread_wrapper(void *arg)
 {
@@ -146,7 +146,8 @@ int snddrv_start( int rate, int chans ) {
     snddrv.drv_status = SNDDRV_STATUS_INITIALIZING;
 
     snd_stream_init();
-     /*libdcmc/snddrv.c:136: warning: passing arg 1 of `thd_create' from incompatible pointer type  */ //Ian micheal 2020 warning 
+     /*libdcmc/snddrv.c:136: warning: passing arg 1 of `thd_create' from incompatible pointer type  */ //Ian micheal 2020 warning
+     // Ian micheal fixed all threading problems
     /* Use the wrapper function here */
     snddrv_thd = thd_create(0, snddrv_thread_wrapper, NULL);
     
