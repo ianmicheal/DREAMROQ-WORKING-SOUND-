@@ -6,7 +6,7 @@
  * the KallistiOS operating system.
  */
 /*
-	Name: Iaan micheal
+	Name: Ian micheal
 	Copyright: 
 	Author: Ian micheal
 	Date: 12/08/23 05:17
@@ -171,7 +171,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     return ROQ_SUCCESS;
 }
-
+// Ian micheal fixed all threading problems
 static void *snd_thd_wrapper(void *arg)
 {
     snd_thd();  // Call the actual audio thread function
@@ -190,7 +190,7 @@ static int audio_cb(unsigned char *buf, int size, int channels)
         /* Start AICA Driver */
         snddrv_start(22050, channels);
         snddrv.dec_status = SNDDEC_STATUS_STREAMING;
-
+         // Ian micheal fixed all threading problems
           /* Create a thread to stream the samples to the AICA */
         thd_create(0, snd_thd_wrapper, NULL);
         
