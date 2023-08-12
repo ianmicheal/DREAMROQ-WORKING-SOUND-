@@ -1,3 +1,5 @@
+
+
 # DREAMROQ-WORKING-SOUND
 Update working sound on kos2.0 
 all warnings fixed all threading fixed
@@ -6,8 +8,8 @@ all warnings fixed all threading fixed
 working now correct on a cdr speed and sound 
 
 
-Uploading bandicam 2023-08-12 03-45-11-395.mp4…
 
+https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/7386fa5e-87c0-4a8f-a9a2-5159b203dfb0
 
 Ian micheal update fix request no black screen working sound
 ===========================================================
