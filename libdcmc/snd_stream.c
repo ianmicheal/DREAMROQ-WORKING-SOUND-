@@ -14,6 +14,14 @@
    SH-4 support routines for SPU streaming sound driver
 */
 /* Missing headers Ian micheal 2020*/
+/*
+	Name: Ian micheal
+	Copyright: 
+	Author: Ian micheal
+	Date: 12/08/23 05:17
+	Description: kos 2.0 up port threading fix and wrappers and all warnings fixed
+*/
+
 #include <kos.h>
 #include <assert.h>
 #include <string.h>
@@ -30,7 +38,6 @@
 
 #include "arm/aica_cmd_iface.h"
 
-CVSID("$Id: snd_stream.c,v 1.13 2003/03/09 01:26:37 bardtx Exp $");
 
 /*
 
@@ -424,29 +431,27 @@ static void dma_chain(ptr_t data) {
 	spu_dma_transfer(sep_buffer[1], dmadest, dmacnt, 0, NULL, 0);
 } */
 
-/* Poll streamer to load more data if neccessary */
+/* Poll streamer to load more data if necessary */
 int snd_stream_poll(snd_stream_hnd_t hnd) {
-	uint32		ch0pos, ch1pos;
-	int		realbuffer;
-	int		current_play_pos;
-	int		needed_samples;
-	int		got_samples;
-	void		*data;
+    uint32 ch0pos, ch1pos;
+    /* int realbuffer; */  // Remove this line
+    int current_play_pos;
+    int needed_samples;
+    int got_samples;
+    void *data;
 
-	CHECK_HND(hnd);
+    CHECK_HND(hnd);
 
-	if (!streams[hnd].get_data) return -1;
+    if (!streams[hnd].get_data) return -1;
 
-	/* Get "real" buffer */
-	ch0pos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(streams[hnd].ch[0]) + offsetof(aica_channel_t, pos));
-	ch1pos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(streams[hnd].ch[1]) + offsetof(aica_channel_t, pos));
+    /* Get "real" buffer */
+    ch0pos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(streams[hnd].ch[0]) + offsetof(aica_channel_t, pos));
+    ch1pos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(streams[hnd].ch[1]) + offsetof(aica_channel_t, pos));
 
-	if (ch0pos >= (streams[hnd].buffer_size/2)) {
-		dbglog(DBG_ERROR, "snd_stream_poll: chan0(%d).pos = %ld (%08lx)\n", streams[hnd].ch[0], ch0pos, ch0pos);
-		return -1;
-	}
-	
-	realbuffer = !((ch0pos < (streams[hnd].buffer_size/4)) && (ch1pos < (streams[hnd].buffer_size/4)));
+    if (ch0pos >= (streams[hnd].buffer_size/2)) {
+        dbglog(DBG_ERROR, "snd_stream_poll: chan0(%d).pos = %ld (%08lx)\n", streams[hnd].ch[0], ch0pos, ch0pos);
+        return -1;
+    }
 
 	current_play_pos = (ch0pos < ch1pos)?(ch0pos):(ch1pos);
 

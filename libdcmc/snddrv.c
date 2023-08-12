@@ -18,6 +18,13 @@
 ** at that point the decoder signals sndbuf_status=SNDDRV_STATUS_HAVEBUF
 **
 */
+/*
+	Name: Ian micheal
+	Copyright: 
+	Author: Ian micheal
+	Date: 12/08/23 05:17
+	Description: kos 2.0 up port threading fix and wrappers and all warnings fixed
+*/
 
 #include <kos/thread.h>
 #include <dc/sound/stream.h>
@@ -117,6 +124,13 @@ static int snddrv_thread() {
 	return snddrv.drv_status;
 }
 
+/* Wrapper function for snddrv_thread */
+static void *snddrv_thread_wrapper(void *arg)
+{
+    int status = snddrv_thread(); // Get the status value
+    return (void *)(size_t)status; // Cast the int status to void pointer
+}
+
 /* Start the AICA Sound Stream Thread */
 int snddrv_start( int rate, int chans ) {
     
@@ -133,7 +147,11 @@ int snddrv_start( int rate, int chans ) {
 
     snd_stream_init();
      /*libdcmc/snddrv.c:136: warning: passing arg 1 of `thd_create' from incompatible pointer type  */ //Ian micheal 2020 warning 
-    snddrv_thd = thd_create( snddrv_thread, NULL );
+    /* Use the wrapper function here */
+    snddrv_thd = thd_create(0, snddrv_thread_wrapper, NULL);
+    
+    printf("SNDDRV: Creating Driver Thread\n");
+
     
     return snddrv.drv_status;
 
