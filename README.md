@@ -11,6 +11,10 @@ Getting anything to sync will be hard; it all has to be done with encoding. This
 
 Included batch files to convert MP4 or AVI that has been converted to 512x512 to ROQ with sound that works with this player. This is a sample player that can be used for FMV in your game and as an intro library to show your FMV intro, then boot your main game, etc.
 
+
+https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/fd857735-3a19-4509-b25f-2aa27f6b407e
+
+
 Request filled.
 
 Files must be
