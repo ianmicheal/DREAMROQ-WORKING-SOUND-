@@ -434,6 +434,7 @@ static void dma_chain(ptr_t data) {
 /* Poll streamer to load more data if necessary */
 int snd_stream_poll(snd_stream_hnd_t hnd) {
     uint32 ch0pos, ch1pos;
+	// Ian micheal fixed all threading problems
     /* int realbuffer; */  // Remove this line
     int current_play_pos;
     int needed_samples;
@@ -443,7 +444,7 @@ int snd_stream_poll(snd_stream_hnd_t hnd) {
     CHECK_HND(hnd);
 
     if (!streams[hnd].get_data) return -1;
-
+    // Ian micheal fixed all threading problems
     /* Get "real" buffer */
     ch0pos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(streams[hnd].ch[0]) + offsetof(aica_channel_t, pos));
     ch1pos = g2_read_32(SPU_RAM_BASE + AICA_CHANNEL(streams[hnd].ch[1]) + offsetof(aica_channel_t, pos));
