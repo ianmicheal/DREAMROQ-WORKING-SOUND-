@@ -1,45 +1,42 @@
-# DREAMROQ-WORKING-SOUND-
-Update working sound on  kos1.3
-29fps
+# DREAMROQ-WORKING-SOUND
+Update working sound on kos2.0 
+all warnings fixed all threading fixed
+30fps
 ==============
-Ian micheal update fix request no black screen working sound 
-================================================================
-Geting any thing to sync will be hard it all has to be done with encoding
 
-this will try but will run it 29fps flat out all the time 
-Included batch files to convert mp4 or avi that has been converted to 512x512 to ROQ with sound that works with this player
-this is a sample player it can be used for fmv in your game and as an intro lib to show your fmv intro then boot your main
-game etc.. 
+Ian micheal update fix request no black screen working sound
+===========================================================
 
-request filled
+Getting anything to sync will be hard; it all has to be done with encoding. This will try but will run at 29fps flat out all the time.
+
+Included batch files to convert MP4 or AVI that has been converted to 512x512 to ROQ with sound that works with this player. This is a sample player that can be used for FMV in your game and as an intro library to show your FMV intro, then boot your main game, etc.
+
+Request filled.
 
 Files must be
 =====================
-512x512 22khz before using the encoder and batches files use shana encoder it's free
-mp4 or avi batch files are included.. you cant use any size other then 512x512 in and out..
+- 512x512 resolution
+- 22kHz audio before using the encoder and batch files
+- Use the ShanaEncoder, it's free
+- MP4 or AVI batch files are included
+- You can't use any size other than 512x512 in and out.
 
 License
 =======
-Dreamroq is meant to be license-compatible with the rest of the KallistiOS
-operating system, which is a BSD-style open source license. You can read
-the specific text in LICENSE.KOS.
-
-So you can use it in your games not have problems.
+Dreamroq is meant to be license-compatible with the rest of the KallistiOS operating system, which is a BSD-style open-source license. You can read the specific text in LICENSE.KOS. So you can use it in your games without having problems.
 
 Dreamroq Library
 
 Introduction
 ============
-Dreamroq is a RoQ playback library designed for the Sega Dreamcast video
-game console.
+Dreamroq is a RoQ playback library designed for the Sega Dreamcast video game console.
 
-RoQ is a relatively simple video file format developed for video-heavy
-CD-ROM games. Read more about the format here:
+RoQ is a relatively simple video file format developed for video-heavy CD-ROM games. Read more about the format here:
 
 http://wiki.multimedia.cx/index.php?title=RoQ
 
-The Dreamroq library includes a player component that is designed to run
-under the KallistiOS (KOS) open source operating system. Read more about
+The Dreamroq library includes a player component that is designed to run under the KallistiOS (KOS) open-source operating system. Read more about...
+
 KOS at:
 
 http://gamedev.allusion.net/softprj/kos/
