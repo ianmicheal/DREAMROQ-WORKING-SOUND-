@@ -6,19 +6,10 @@ Update working sound on kos2.0
 all warnings fixed all threading fixed
 30fps
 working now correct on a cdr speed and sound 
-
-
-
 https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/7386fa5e-87c0-4a8f-a9a2-5159b203dfb0
-
 Ian micheal update fix request no black screen working sound
-
-
-Getting anything to sync will be hard; it all has to be done with encoding. This will try but will run at 29fps flat out all the time.
-
+Getting anything to sync will be hard; it all has to be done with encoding. This will try but will run at 30fps flat out all the time.
 Included batch files to convert MP4 or AVI that has been converted to 512x512 to ROQ with sound that works with this player. This is a sample player that can be used for FMV in your game and as an intro library to show your FMV intro, then boot your main game, etc.
-
-
 https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/fd857735-3a19-4509-b25f-2aa27f6b407e
 
 
