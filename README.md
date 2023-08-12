@@ -3,6 +3,11 @@ Update working sound on kos2.0
 all warnings fixed all threading fixed
 30fps
 ==============
+working now correct on a cdr speed and sound 
+
+
+Uploading bandicam 2023-08-12 03-45-11-395.mp4…
+
 
 Ian micheal update fix request no black screen working sound
 ===========================================================
