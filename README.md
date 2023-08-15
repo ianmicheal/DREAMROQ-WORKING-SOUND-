@@ -2,6 +2,16 @@
 
 DREAMROQ-WORKING-SOUND
 ===============================
+Name: Ian micheal
+Copyright: 
+Author: 
+Date: 15/08/23 19:24
+Description: ported from C normal file system to kos FS file system api because if this
+	
+Info from TapamN One issue you might run into is slow file access over ethernet.
+Using the C library stdio.h functions (fread, fwrite) can be much slower than using the KOS filesystem calls directly (fs_read, fs_write) when reading/writing large blocks.
+With stdio, you get something like tens of KB/sec, while with KOS you can get over 1 MB/sec. Stdio might be faster when preforming many very small operations. 
+dcload-serial doesn't have this issue.
 Update working sound on kos2.0
 all warnings fixed all threading fixed
 30fps
