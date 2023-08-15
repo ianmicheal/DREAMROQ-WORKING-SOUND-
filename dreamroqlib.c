@@ -4,11 +4,18 @@
  * 
  * This is the main playback engine.
  */
+/*
+	Name:Ian micheal 
+	Date: 15/08/23 08:16
+	Description: Optimizing for sh4 cache and memory patterns 
+*/
 
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include <dc/fmath_base.h>
+#include <kos/fs.h> // Include the KOS filesystem header
 #include "dreamroqlib.h"
 
 #define RoQ_INFO           0x1001
@@ -24,6 +31,7 @@
 #define LE_32(buf) (*buf | (*(buf+1) << 8) | (*(buf+2) << 16) | (*(buf+3) << 24))
 
 #define MAX_BUF_SIZE (64 * 1024)
+
 
 #define ROQ_CODEBOOK_SIZE 256
 
@@ -216,7 +224,7 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
                 GET_MODE();
                 switch (mode)
                 {
-                case 0:  /* MOT: skip */
+               case 0:  /* MOT: skip */
                     break;
 
                 case 1:  /* FCC: motion compensation */
@@ -259,7 +267,7 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
                     }
                     break;
 
-                case 3:  /* CCC: subdivide into 4 subblocks */
+    case 3:  /* CCC: subdivide into 4 subblocks */
                     for (subblock = 0; subblock < 4; subblock++)
                     {
                         subblock_offset = block_offset + (subblock / 2 * 4 * stride) + (subblock % 2 * 4);
@@ -287,8 +295,7 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
                                 last_ptr += stride - 4;
                                 this_ptr += stride - 4;
                             }
-                            break;
-
+                            break;;
                         case 2:  /* SLD: use 4x4 vector from codebook */
                             GET_BYTE(data_byte);
                             vector32 = (unsigned int*)state->cb4x4[data_byte];
@@ -362,12 +369,24 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
 
     return status;
 }
+/*
+	Name: Ian micheal
+	Copyright: 
+	Author: 
+	Date: 15/08/23 19:24
+	Description: ported from C normal file system to kos FS file system api because if this
+	
+	Info from TapamN One issue you might run into is slow file access over ethernet.
+	Using the C library stdio.h functions (fread, fwrite) can be much slower than using the KOS filesystem calls directly (fs_read, fs_write) when reading/writing large blocks.
+	With stdio, you get something like tens of KB/sec, while with KOS you can get over 1 MB/sec. Stdio might be faster when preforming many very small operations. 
+	dcload-serial doesn't have this issue.
+*/
 
 int dreamroq_play(char *filename, int loop, render_callback render_cb,
                   audio_callback audio_cb, quit_callback quit_cb)
 {
-    FILE *f;
-    size_t file_ret;
+    file_t f;
+    ssize_t file_ret;
     int framerate;
     int chunk_id;
     unsigned int chunk_size;
@@ -378,27 +397,19 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
     unsigned char read_buffer[MAX_BUF_SIZE];
     int i, snd_left, snd_right;
 
-    f = fopen(filename, "rb");
-    if (!f)
+    f = fs_open(filename, O_RDONLY);
+    if (f < 0)
         return ROQ_FILE_OPEN_FAILURE;
 
-    file_ret = fread(read_buffer, CHUNK_HEADER_SIZE, 1, f);
-    if (file_ret != 1)
+    file_ret = fs_read(f, read_buffer, CHUNK_HEADER_SIZE);
+    if (file_ret != CHUNK_HEADER_SIZE)
     {
-        fclose(f);
+        fs_close(f);
         printf("\nROQ_FILE_READ_FAILURE\n\n");
-        return ROQ_FILE_READ_FAILURE;
-        
-    }
-    chunk_id   = LE_16(&read_buffer[0]);
-    chunk_size = LE_32(&read_buffer[2]);
-    if (chunk_id != RoQ_SIGNATURE || chunk_size != 0xFFFFFFFF)
-    {
-        fclose(f);
         return ROQ_FILE_READ_FAILURE;
     }
     framerate = LE_16(&read_buffer[6]);
-    printf("RoQ file plays at %d frames/sec\n", framerate);
+   printf("RoQ file plays at %d frames/sec\n", framerate);
 	
     /* Initialize Audio SQRT Look-Up Table */
     for(i = 0; i < 128; i++)
@@ -407,60 +418,46 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
         roq_audio.snd_sqr_arr[i + 128] = -(i * i);
     }
 
-    status = ROQ_SUCCESS;
-    while (!feof(f) && status == ROQ_SUCCESS)
+
+status = ROQ_SUCCESS;
+while (1)
+{
+    if (quit_cb && quit_cb())
+        break;
+
+    file_ret = fs_read(f, read_buffer, CHUNK_HEADER_SIZE);
+    #ifdef FPSGRAPH
+        printf("r\n");
+    #endif
+    if (file_ret < CHUNK_HEADER_SIZE)
     {
-        /* if client program defined a quit callback, check if it's time
-         * to quit */
-        if (quit_cb && quit_cb())
+        if (file_ret == 0) // Indicates end of file
             break;
-
-        file_ret = fread(read_buffer, CHUNK_HEADER_SIZE, 1, f);
-        #ifdef FPSGRAPH
-                printf("r\n");
-        #endif
-        if (file_ret != 1)
+        else if (loop)
         {
-            /* if the read failed but the file is not EOF, there is a deeper
-             * problem; don't entertain the idea of looping */
-            if (!feof(f))
-                break;
-            else if (loop)
-            {
-                /* it shouldn't be necessary to close and re-open the file
-                 * here; however, this works around a bug in KOS 1.2.0 in
-                 * which seeking back doesn't clear the EOF flag */
-                //fclose(f);
-                //f = fopen(filename, "rb");
-                if (!f)
-                    status = ROQ_FILE_OPEN_FAILURE;
-                else
-                {
-                    /* skip the signature header */
-                    fseek(f, 8, SEEK_SET);
-                    continue;
-                }
-            }
-            else
-                break;
+            fs_seek(f, 8, SEEK_SET);
+            continue;
         }
-
-        chunk_id   = LE_16(&read_buffer[0]);
-        chunk_size = LE_32(&read_buffer[2]);
-        chunk_arg  = LE_16(&read_buffer[6]);
-
-        if (chunk_size > MAX_BUF_SIZE)
-        {
-            fclose(f);
-            return ROQ_CHUNK_TOO_LARGE;
-        }
-	
-        file_ret = fread(read_buffer, chunk_size, 1, f);
-        if (file_ret != 1)
-        {
-            status = ROQ_FILE_READ_FAILURE;
+        else
             break;
-        }
+    }
+    chunk_id = LE_16(&read_buffer[0]);
+    chunk_size = LE_32(&read_buffer[2]);
+    chunk_arg = LE_16(&read_buffer[6]);
+
+    if (chunk_size > MAX_BUF_SIZE)
+    {
+        fs_close(f);
+        return ROQ_CHUNK_TOO_LARGE;
+    }
+
+    file_ret = fs_read(f, read_buffer, chunk_size);
+    if (file_ret != chunk_size)
+    {
+        status = ROQ_FILE_READ_FAILURE;
+        break;
+    }
+
             
         switch(chunk_id)
         {
@@ -528,7 +525,6 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
                 status = render_cb(state.frame[state.current_frame], 
                     state.width, state.height, state.stride, state.texture_height);
             break;
-
         case RoQ_SOUND_MONO:
             roq_audio.channels = 1;
             roq_audio.pcm_samples = chunk_size*2;
@@ -565,12 +561,11 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
 
         default:
             break;
-        }
     }
-
+}
     free(state.frame[0]);
     free(state.frame[1]);
-    fclose(f);
+    fs_close(f);
 
     return status;
 }
