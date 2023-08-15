@@ -1,6 +1,6 @@
 
 
-
+KOS_CFLAGS += -std=c99
 # Put the filename of the output binary here
 TARGET = dreamroq.elf
 
