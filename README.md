@@ -24,7 +24,7 @@ Wait for AICA Driver: 88 ms
 Wait for RoQ Decoder: 0 ms```
 
 **Before:**
-``Wait for AICA Driver: 168 ms
+Wait for AICA Driver: 168 ms
 Wait for RoQ Decoder: 0 ms
 Copy PCM Samples: 1 ms
 Inform AICA Driver: 0 ms
@@ -32,7 +32,7 @@ Wait for AICA Driver: 187 ms
 Wait for RoQ Decoder: 0 ms
 Copy PCM Samples: 1 ms
 Inform AICA Driver: 0 ms
-Wait for AICA Driver: 197 ms``
+Wait for AICA Driver: 197 ms
 
 Description: ported from C normal file system to kos FS file system api because if this
 	
