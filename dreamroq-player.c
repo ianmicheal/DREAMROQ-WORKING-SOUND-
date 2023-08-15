@@ -11,6 +11,25 @@
 	Author: Ian micheal
 	Date: 12/08/23 05:17
 	Description: kos 2.0 up port threading fix and wrappers and all warnings fixed
+	Redone threading and main added benchmarking for timing acia and roq decoding audio
+	redone rendering order and code commented to be much easier to read.
+	example OUTPUT:> Wait for AICA Driver: 88 ms
+    OUTPUT:> Wait for RoQ Decoder: 1 ms
+    OUTPUT:> Copy PCM Samples: 1 ms
+    OUTPUT:> Inform AICA Driver: 0 ms
+    OUTPUT:> Wait for AICA Driver: 88 ms
+    OUTPUT:> Wait for RoQ Decoder: 0 ms
+    
+    Before 
+    OUTPUT:> Wait for AICA Driver: 168 ms
+    OUTPUT:> Wait for RoQ Decoder: 0 ms
+    OUTPUT:> Copy PCM Samples: 1 ms
+    OUTPUT:> Inform AICA Driver: 0 ms
+    OUTPUT:> Wait for AICA Driver: 187 ms
+    OUTPUT:> Wait for RoQ Decoder: 0 ms
+    OUTPUT:> Copy PCM Samples: 1 ms
+    OUTPUT:> Inform AICA Driver: 0 ms
+    OUTPUT:> Wait for AICA Driver: 197 ms
 */
 
 #include <stdio.h>
