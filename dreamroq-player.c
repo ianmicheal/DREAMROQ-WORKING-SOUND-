@@ -6,7 +6,7 @@
  * the KallistiOS operating system.
  */
 /*
-	Name: Ian micheal
+	Name: Iaan micheal
 	Copyright: 
 	Author: Ian micheal
 	Date: 12/08/23 05:17
@@ -22,56 +22,67 @@
 #include <dc/maple/controller.h>
 #include <kos/mutex.h>
 #include <kos/thread.h>
-
 #include "dreamroqlib.h"
-
 #include "dc_timer.h"
 #include "snddrv.h"
 #include <dc/sound/sound.h>
 #include <stdio.h>
 
 /* Audio Global variables */
-#define PCM_BUF_SIZE (1024 * 1024)
+#define   PCM_BUF_SIZE (1024 * 1024) 
 static unsigned char *pcm_buf = NULL;
 static int pcm_size = 0;
-static int audio_init = 0;
+#define AUDIO_THREAD_PRIO 0
+kthread_t *audio_thread; // Thread handle for the audio thread
+int audio_init = 0; // Flag to indicate audio initialization status
 static mutex_t pcm_mut = MUTEX_INITIALIZER;
-
 /* Video Global variables */
 static pvr_ptr_t textures[2];
 static int current_frame = 0;
 static int graphics_initialized = 0;
 static float video_delay;
-static int frame = 0;
-static const float VIDEO_RATE = 30.0f; /* Video FPS */
+// Define the target frame rate
+#define TARGET_FRAME_RATE 30
 
 static void snd_thd()
 {
     do
     {
-        /* Wait for AICA Driver to request some samples */
+        unsigned int start_time, end_time;
+
+        // Measure time taken by waiting for AICA Driver request
+        start_time = dc_get_time();
         while (snddrv.buf_status != SNDDRV_STATUS_NEEDBUF)
             thd_pass();
+        end_time = dc_get_time();
+        printf("Wait for AICA Driver: %u ms\n", end_time - start_time);
 
-        /* Wait for RoQ Decoder to produce enough samples */
+        // Measure time taken by waiting for RoQ Decoder
+        start_time = dc_get_time();
         while (pcm_size < snddrv.pcm_needed)
         {
             if (snddrv.dec_status == SNDDEC_STATUS_DONE)
                 goto done;
             thd_pass();
         }
+        end_time = dc_get_time();
+        printf("Wait for RoQ Decoder: %u ms\n", end_time - start_time);
 
-        /* Copy the Requested PCM Samples to the AICA Driver */
+        // Measure time taken by copying PCM samples
+        start_time = dc_get_time();
         mutex_lock(&pcm_mut);
         memcpy(snddrv.pcm_buffer, pcm_buf, snddrv.pcm_needed);
-
-        /* Shift the Remaining PCM Samples Back */
         pcm_size -= snddrv.pcm_needed;
         memmove(pcm_buf, pcm_buf + snddrv.pcm_needed, pcm_size);
         mutex_unlock(&pcm_mut);
+        end_time = dc_get_time();
+        printf("Copy PCM Samples: %u ms\n", end_time - start_time);
 
-        /* Let the AICA Driver know the PCM samples are ready */
+        // Measure time taken by informing AICA Driver
+        start_time = dc_get_time();
         snddrv.buf_status = SNDDRV_STATUS_HAVEBUF;
+        end_time = dc_get_time();
+        printf("Inform AICA Driver: %u ms\n", end_time - start_time);
 
     } while (snddrv.dec_status == SNDDEC_STATUS_STREAMING);
 done:
@@ -86,10 +97,10 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
     static pvr_vertex_t vert[4];
 
     float ratio;
-    /* screen coordinates of upper left and bottom right corners */
+    // screen coordinates of upper left and bottom right corners
     static int ul_x, ul_y, br_x, br_y;
 
-    /* on first call, initialize textures and drawing coordinates */
+    // Initialize textures, drawing coordinates, and other parameters
     if (!graphics_initialized)
     {
         textures[0] = pvr_mem_malloc(stride * texture_height * 2);
@@ -99,26 +110,29 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
             return ROQ_RENDER_PROBLEM;
         }
 
-        /* Precompile the poly headers */
-        pvr_poly_cxt_txr(&cxt, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, stride, texture_height, textures[0], PVR_FILTER_NONE);
-        pvr_poly_compile(&hdr[0], &cxt);
-        pvr_poly_cxt_txr(&cxt, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED, stride, texture_height, textures[1], PVR_FILTER_NONE);
-        pvr_poly_compile(&hdr[1], &cxt);
+        // Precompile the poly headers
+        for (int i = 0; i < 2; i++) {
+            pvr_poly_cxt_txr(&cxt, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED,
+                             stride, texture_height, textures[i], PVR_FILTER_NONE);
+            pvr_poly_compile(&hdr[i], &cxt);
+        }
 
-        /* this only works if width ratio <= height ratio */
+        // Calculate drawing coordinates
         ratio = 640.0 / width;
         ul_x = 0;
-        br_x = (ratio * stride);
-        ul_y = ((480 - ratio * height) / 2);
-        br_y = ul_y + ratio * texture_height;
+        br_x = (int)(ratio * stride);
+        ul_y = (int)((480 - ratio * height) / 2);
+        br_y = ul_y + (int)(ratio * texture_height);
 
-        /* Things common to vertices */
-        vert[0].z = vert[1].z = vert[2].z = vert[3].z = 1.0f;
-        vert[0].argb = vert[1].argb = vert[2].argb = vert[3].argb = PVR_PACK_COLOR(1.0f, 1.0f, 1.0f, 1.0f);
-        vert[0].oargb = vert[1].oargb = vert[2].oargb = vert[3].oargb = 0;
-        vert[0].flags = vert[1].flags = vert[2].flags = PVR_CMD_VERTEX;
-        vert[3].flags = PVR_CMD_VERTEX_EOL;
+        // Set common vertex properties
+        for (int i = 0; i < 4; i++) {
+            vert[i].z = 1.0f;
+            vert[i].argb = PVR_PACK_COLOR(1.0f, 1.0f, 1.0f, 1.0f);
+            vert[i].oargb = 0;
+            vert[i].flags = (i < 3) ? PVR_CMD_VERTEX : PVR_CMD_VERTEX_EOL;
+        }
 
+        // Initialize vertex coordinates and UV coordinates
         vert[0].x = ul_x;
         vert[0].y = ul_y;
         vert[0].u = 0.0;
@@ -139,68 +153,53 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         vert[3].u = 1.0;
         vert[3].v = 1.0;
 
-        /* Get current hardware timing */
+        // Get the current hardware timing
         video_delay = (float)dc_get_time();
 
         graphics_initialized = 1;
     }
 
-    /* send the video frame as a texture over to video RAM */
+    // Send the video frame as a texture over to video RAM
     pvr_txr_load(buf, textures[current_frame], stride * texture_height * 2);
 
-    /* Delay the frame to match Frame Rate */
-    frame_delay(VIDEO_RATE, video_delay, ++frame);
+    // Calculate the elapsed time since the last frame
+    unsigned int current_time = dc_get_time();
+    unsigned int elapsed_time = current_time - video_delay;
+    unsigned int target_frame_time = 1000 / TARGET_FRAME_RATE;
+
+    // If the elapsed time is less than the target frame time, introduce a delay
+    if (elapsed_time < target_frame_time) {
+        unsigned int delay_time = target_frame_time - elapsed_time;
+        thd_sleep(delay_time);
+    }
+
+    // Update the hardware timing for the current frame
+    video_delay = (float)current_time;
 
     pvr_wait_ready();
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_OP_POLY);
 
+    // Render the frame using precompiled headers and vertices
     pvr_prim(&hdr[current_frame], sizeof(pvr_poly_hdr_t));
-    pvr_prim(&vert[0], sizeof(pvr_vertex_t));
-    pvr_prim(&vert[1], sizeof(pvr_vertex_t));
-    pvr_prim(&vert[2], sizeof(pvr_vertex_t));
-    pvr_prim(&vert[3], sizeof(pvr_vertex_t));
+    for (int i = 0; i < 4; i++) {
+        pvr_prim(&vert[i], sizeof(pvr_vertex_t));
+    }
 
     pvr_list_finish();
     pvr_scene_finish();
 
-    if (current_frame)
-        current_frame = 0;
-    else
-        current_frame = 1;
+    // Toggle between frames
+    current_frame = 1 - current_frame;
 
     return ROQ_SUCCESS;
 }
-// Ian micheal fixed all threading problems
-static void *snd_thd_wrapper(void *arg)
-{
-    snd_thd();  // Call the actual audio thread function
-    return NULL;
-}
+
+
 
 static int audio_cb(unsigned char *buf, int size, int channels)
 {
-    if (!audio_init)
-    {
-        /* allocate PCM buffer */
-        pcm_buf = malloc(PCM_BUF_SIZE);
-        if (pcm_buf == NULL)
-            return ROQ_NO_MEMORY;
-
-        /* Start AICA Driver */
-        snddrv_start(22050, channels);
-        snddrv.dec_status = SNDDEC_STATUS_STREAMING;
-         // Ian micheal fixed all threading problems
-          /* Create a thread to stream the samples to the AICA */
-        thd_create(0, snd_thd_wrapper, NULL);
-        
-            //printf("SNDDRV: Creating Driver Thread\n");
-
-
-        audio_init = 1;
-    }
-
-    /* Copy the decoded PCM samples to our local PCM buffer */
+    // Copy the decoded PCM samples to our local PCM buffer
     mutex_lock(&pcm_mut);
     memcpy(pcm_buf + pcm_size, buf, size);
     pcm_size += size;
@@ -209,18 +208,70 @@ static int audio_cb(unsigned char *buf, int size, int channels)
     return ROQ_SUCCESS;
 }
 
+// Audio thread function
+static void *snd_thd_wrapper(void *arg)
+{
+    printf("Audio Thread: Started\n");
+    unsigned int start_time = dc_get_time();
+
+    // Call the actual audio thread function
+    snd_thd();
+
+    unsigned int end_time = dc_get_time();
+    unsigned int elapsed_time = end_time - start_time;
+    printf("Audio Thread: Finished (Time: %u ms)\n", elapsed_time);
+
+    return NULL;
+}
+
+
 static int quit_cb()
 {
+    static int frame_count = 0;
+    static unsigned int last_time = 0;
+    static unsigned int target_frame_time = 1000 / 30; // 30 FPS
+
+    // Calculate time difference since the last frame
+    unsigned int current_time = dc_get_time();
+    unsigned int elapsed_time = current_time - last_time;
+
+    // Check if the video has ended and the audio decoding status is done
+    if (snddrv.dec_status == SNDDEC_STATUS_DONE) {
+        printf("Exiting due to audio decoding status\n");
+        return 1; // Exit the loop
+    }
+
+    // Check if the "Start" button is pressed
     MAPLE_FOREACH_BEGIN(MAPLE_FUNC_CONTROLLER, cont_state_t, st)
-    if (st->buttons & CONT_START)
-        goto exit_loop;
+    if (st->buttons & CONT_START) {
+        printf("Exiting due to Start button\n");
+        return 1; // Exit the loop
+    }
     MAPLE_FOREACH_END()
 
-    return 0;
+    // Delay if necessary to maintain the target frame rate
+    if (elapsed_time < target_frame_time) {
+        unsigned int delay_time = target_frame_time - elapsed_time;
+        thd_sleep(delay_time);
+    }
 
-exit_loop:
-    return 1;
+    // Print FPS information every second
+    if (elapsed_time >= 1000) {
+        double fps = (double)frame_count / (elapsed_time / 1000.0);
+     //   printf("FPS: %.2lf\n", fps);
+
+        frame_count = 0;
+        last_time = current_time;
+    }
+
+  //  printf("Continuing loop\n");
+    fflush(stdout); // Flush the output buffer to ensure immediate display
+    frame_count++;
+
+    return 0; // Continue the loop
 }
+
+
 
 int main()
 {
@@ -230,18 +281,51 @@ int main()
     pvr_init_defaults();
 
     printf("dreamroq_play(C) Multimedia Mike Melanson & Josh PH3NOM Pearson 2011\n");
-    printf("dreamroq_play(C) Ian micheal Kos2.0 sound fix and threading\n");
+    printf("dreamroq_play(C) Ian micheal Up port to Kos2.0 sound fix and threading\n");
+    printf("dreamroq_play(C) Ian micheal Kos2.0 free and exit when loop ends 2023\n");
+    printf("dreamroq_play(C) Ian micheal redo frame limit code and rendering and comment what it does 2023\n");
+    
+    // Initialize audio resources and create the audio thread
+    if (!audio_init)
+    {
+        pcm_buf = malloc(PCM_BUF_SIZE);
+        if (pcm_buf == NULL)
+        {
+            printf("Failed to allocate PCM buffer\n");
+            return 1;
+        }
+
+        snddrv_start(22050, 2);
+        snddrv.dec_status = SNDDEC_STATUS_STREAMING;
+
+        printf("Creating Audio Thread\n");
+        audio_thread = thd_create(AUDIO_THREAD_PRIO, snd_thd_wrapper, NULL); 
+        if (!audio_thread)
+        {
+            printf("Failed to create audio thread\n");
+            free(pcm_buf);
+            pcm_buf = NULL;
+            return 1;
+        }
+
+        audio_init = 1;
+    }
 
     /* To disable a callback, simply replace the function name by 0 */
     status = dreamroq_play("/cd/movie.roq", 0, render_cb, audio_cb, quit_cb);
 
     printf("dreamroq_play() status = %d\n", status);
 
+    // Terminate and clean up the audio thread
     if (audio_init)
     {
-        snddrv.dec_status = SNDDEC_STATUS_DONE; /* Signal audio thread to stop */
+        snddrv.dec_status = SNDDEC_STATUS_DONE;
         while (snddrv.dec_status != SNDDEC_STATUS_NULL)
-            thd_pass();
+        {
+            thd_pass(1);
+            printf("Waiting for audio thread to finish...\n");
+        }
+        thd_destroy(audio_thread); // Destroy the audio thread
         free(pcm_buf);
         pcm_buf = NULL;
         pcm_size = 0;
@@ -249,11 +333,14 @@ int main()
 
     if (graphics_initialized)
     {
-        pvr_mem_free(textures[0]); /* Free the PVR memory */
+        pvr_mem_free(textures[0]);
         pvr_mem_free(textures[1]);
+        printf("Freed PVR memory\n");
     }
 
+    printf("Exiting main()\n");
     return 0;
 }
+
 
 
