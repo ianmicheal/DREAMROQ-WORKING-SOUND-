@@ -21,7 +21,7 @@ Wait for RoQ Decoder: 1 ms
 Copy PCM Samples: 1 ms
 Inform AICA Driver: 0 ms
 Wait for AICA Driver: 88 ms
-Wait for RoQ Decoder: 0 ms```
+Wait for RoQ Decoder: 0 ms
 
 **Before:**
 Wait for AICA Driver: 168 ms
