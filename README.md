@@ -23,6 +23,9 @@ Inform AICA Driver: 0 ms
 Wait for AICA Driver: 88 ms
 Wait for RoQ Decoder: 0 ms
 
+**Before:**
+
+
 Description: ported from C normal file system to kos FS file system api because if this
 	
 Info from TapamN One issue you might run into is slow file access over ethernet.
