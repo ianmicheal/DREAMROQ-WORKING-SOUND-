@@ -14,20 +14,18 @@ Date: 15/08/23 19:24
         <li>Redone threading and main structure for improved performance and stability.</li>
         <li>Added benchmarking for timing AICA and RoQ decoding audio.</li>
         <li>Redone rendering order and code commenting for enhanced readability.</li>
-    </ul>
-    
-    <h3>Example Output</h3>
-    <pre>
+        <li>Example Output:</li>
+        <pre>
 Wait for AICA Driver: 88 ms
 Wait for RoQ Decoder: 1 ms
 Copy PCM Samples: 1 ms
 Inform AICA Driver: 0 ms
 Wait for AICA Driver: 88 ms
 Wait for RoQ Decoder: 0 ms
-    </pre>
-    
-    <h3>Before</h3>
-    <pre>
+        </pre>
+        
+        <li>Before:</li>
+        <pre>
 Wait for AICA Driver: 168 ms
 Wait for RoQ Decoder: 0 ms
 Copy PCM Samples: 1 ms
@@ -37,10 +35,12 @@ Wait for RoQ Decoder: 0 ms
 Copy PCM Samples: 1 ms
 Inform AICA Driver: 0 ms
 Wait for AICA Driver: 197 ms
-    </pre>
+        </pre>
+    </ul>
     
     <p>For further details on the modifications and usage, refer to the source code and comments in the repository.</p>
 </div>
+
 
 Description: ported from C normal file system to kos FS file system api because if this
 	
