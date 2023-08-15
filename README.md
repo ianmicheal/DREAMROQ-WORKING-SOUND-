@@ -6,6 +6,24 @@ Name: Ian micheal
 Copyright: 
 Author: 
 Date: 15/08/23 19:24
+Redone threading and main added benchmarking for timing acia and roq decoding audio
+redone rendering order and code commented to be much easier to read.
+example OUTPUT:> Wait for AICA Driver: 88 ms
+OUTPUT:> Wait for RoQ Decoder: 1 ms
+OUTPUT:> Copy PCM Samples: 1 ms
+OUTPUT:> Inform AICA Driver: 0 ms
+OUTPUT:> Wait for AICA Driver: 88 ms
+OUTPUT:> Wait for RoQ Decoder: 0 ms   
+Before 
+OUTPUT:> Wait for AICA Driver: 168 ms
+OUTPUT:> Wait for RoQ Decoder: 0 ms
+OUTPUT:> Copy PCM Samples: 1 ms
+OUTPUT:> Inform AICA Driver: 0 ms
+OUTPUT:> Wait for AICA Driver: 187 ms
+OUTPUT:> Wait for RoQ Decoder: 0 ms
+OUTPUT:> Copy PCM Samples: 1 ms
+OUTPUT:> Inform AICA Driver: 0 ms
+OUTPUT:> Wait for AICA Driver: 197 ms
 Description: ported from C normal file system to kos FS file system api because if this
 	
 Info from TapamN One issue you might run into is slow file access over ethernet.
