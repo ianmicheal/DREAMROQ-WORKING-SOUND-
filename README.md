@@ -20,6 +20,11 @@ This is a modified version of the DreamRoQ player with various improvements:
 
 https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/7386fa5e-87c0-4a8f-a9a2-5159b203dfb0
 
+
+
+
+https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/fd857735-3a19-4509-b25f-2aa27f6b407e
+
 **Example Output:**
 
 ```Wait for AICA Driver: 88 ms
@@ -63,7 +68,7 @@ Included batch files to convert MP4 or AVI that has been converted to 512x512 to
 
 
 
-https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/fd857735-3a19-4509-b25f-2aa27f6b407e
+
 
 
 
