@@ -14,6 +14,12 @@ This is a modified version of the DreamRoQ player with various improvements:
 - Added benchmarking for timing AICA and RoQ decoding audio.
 - Redone rendering order and code commenting for enhanced readability.
 
+- working now correct on a cdr speed and sound 
+
+
+
+https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/7386fa5e-87c0-4a8f-a9a2-5159b203dfb0
+
 **Example Output:**
 
 ```Wait for AICA Driver: 88 ms
@@ -43,11 +49,7 @@ dcload-serial doesn't have this issue.
 Update working sound on kos2.0
 all warnings fixed all threading fixed
 30fps
-working now correct on a cdr speed and sound 
 
-
-
-https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/7386fa5e-87c0-4a8f-a9a2-5159b203dfb0
 
 
 
