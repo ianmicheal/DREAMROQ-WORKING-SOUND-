@@ -341,7 +341,7 @@ int main()
         snddrv.dec_status = SNDDEC_STATUS_DONE;
         while (snddrv.dec_status != SNDDEC_STATUS_NULL)
         {
-            thd_pass(1);
+            thd_sleep(1)
             printf("Waiting for audio thread to finish...\n");
         }
         thd_destroy(audio_thread); // Destroy the audio thread
