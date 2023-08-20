@@ -37,6 +37,9 @@ snd_stream_hnd_t shnd;
 kthread_t * snddrv_thd;
 static int snddrv_vol = 255;
 
+struct snddrv snddrv; 
+struct snddrv_song_info snd_sinfo;
+
 /* Increase the Sound Driver volume */
 int snddrv_volume_up() {
     
