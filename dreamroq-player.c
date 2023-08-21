@@ -43,7 +43,7 @@
 #include <kos/thread.h>
 #include "dreamroqlib.h"
 #include "dc_timer.h"
-#include "snddrv.h"
+#include "libdcmc/snddrv.h"
 #include <dc/sound/sound.h>
 #include <stdio.h>
 
@@ -276,7 +276,7 @@ static int quit_cb()
 
     // Print FPS information every second
     if (elapsed_time >= 1000) {
-        double fps = (double)frame_count / (elapsed_time / 1000.0);
+     //   double fps = (double)frame_count / (elapsed_time / 1000.0);
      //   printf("FPS: %.2lf\n", fps);
 
         frame_count = 0;
@@ -341,7 +341,7 @@ int main()
         snddrv.dec_status = SNDDEC_STATUS_DONE;
         while (snddrv.dec_status != SNDDEC_STATUS_NULL)
         {
-            thd_sleep(1)
+            thd_sleep(1);
             printf("Waiting for audio thread to finish...\n");
         }
         thd_destroy(audio_thread); // Destroy the audio thread
