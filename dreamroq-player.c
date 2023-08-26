@@ -225,20 +225,17 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         graphics_initialized = 1;
     }
 
-    dcache_flush_range((uint32)buf, stride * texture_height * 2);   // dcache flush is needed when using DMA
-    pvr_txr_load_dma(buf, textures[current_frame], stride * texture_height * 2, 1, NULL, 0);
-
     // Send the video frame as a texture over to video RAM
     pvr_txr_load(buf, textures[current_frame], stride * texture_height * 2);
 
     // Calculate the elapsed time since the last frame
     unsigned int current_time = dc_get_time();
     unsigned int elapsed_time = current_time - video_delay;
-    //unsigned int target_frame_time = 33;
+    unsigned int target_frame_time = 1000 / TARGET_FRAME_RATE;
 
     // If the elapsed time is less than the target frame time, introduce a delay
-    if (elapsed_time < 33) {
-        unsigned int delay_time = 33 - elapsed_time;
+    if (elapsed_time < target_frame_time) {
+        unsigned int delay_time = target_frame_time - elapsed_time;
         thd_sleep(delay_time);
     }
 
@@ -398,7 +395,7 @@ int main()
     }
 
     /* To disable a callback, simply replace the function name by 0 */
-    status = dreamroq_play("/cd/movie.roq", 0, NULL, audio_cb, quit_cb);
+    status = dreamroq_play("/cd/movie.roq", 0, render_cb, audio_cb, quit_cb);
 
     printf("dreamroq_play() status = %d\n", status);
 
