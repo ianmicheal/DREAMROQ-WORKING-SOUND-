@@ -14,6 +14,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <malloc.h>
 #include <dc/fmath_base.h>
 #include <kos/fs.h> // Include the KOS filesystem header
 #include "dreamroqlib.h"
@@ -527,8 +528,8 @@ while (1)
             printf("  RoQ_INFO: dimensions = %dx%d, %dx%d; %d mbs, texture = %dx%d\n", 
                 state.width, state.height, state.mb_width, state.mb_height,
                 state.mb_count, state.stride, state.texture_height);
-            state.frame[0] = (unsigned short*)malloc(state.texture_height * state.stride * sizeof(unsigned short));
-            state.frame[1] = (unsigned short*)malloc(state.texture_height * state.stride * sizeof(unsigned short));
+            state.frame[0] = (unsigned short*)memalign(32, state.texture_height * state.stride * sizeof(unsigned short));
+            state.frame[1] = (unsigned short*)memalign(32, state.texture_height * state.stride * sizeof(unsigned short));
             state.current_frame = 0;
             if (!state.frame[0] || !state.frame[1])
             {

@@ -48,9 +48,9 @@
 #include <stdio.h>
 
 /* Audio Global variables */
-#define   PCM_BUF_SIZE (1024 * 1024) 
-static unsigned char *pcm_buf = NULL;
-static int pcm_size = 0;
+#define   PCM_BUF_SIZE (1024 * 128) 
+//static unsigned char *pcm_buf = NULL;
+//static int pcm_size = 0;
 #define AUDIO_THREAD_PRIO 0
 kthread_t *audio_thread; // Thread handle for the audio thread
 int audio_init = 0; // Flag to indicate audio initialization status
@@ -63,45 +63,92 @@ static float video_delay;
 // Define the target frame rate
 #define TARGET_FRAME_RATE 30
 
+/**** New Code *****/
+
+typedef struct {
+    unsigned char *buffer;
+    int head;
+    int tail;
+    int size;
+    int capacity;
+} ring_buffer;
+
+static ring_buffer decode_buffer;
+
+static int ring_buffer_write(ring_buffer *rb, const unsigned char *data, int data_length) {
+    if (data_length > rb->capacity - rb->size) {
+        return 0;
+    }
+
+    for (int i = 0; i < data_length; ++i) {
+        rb->buffer[rb->head] = data[i];
+        rb->head = (rb->head + 1) % rb->capacity;
+    }
+
+    rb->size += data_length;
+    return 1;
+}
+
+static int ring_buffer_read(ring_buffer *rb, unsigned char *data, int data_length) {
+    if (data_length > rb->size) {
+        return 0;
+    }
+
+    for (int i = 0; i < data_length; ++i) {
+        data[i] = rb->buffer[rb->tail];
+        rb->tail = (rb->tail + 1) % rb->capacity;
+    }
+
+    rb->size -= data_length;
+    return 1;
+}
+
+/*******************/
+
+
 static void snd_thd()
 {
     do
     {
-        unsigned int start_time, end_time;
+        //unsigned int start_time, end_time;
 
         // Measure time taken by waiting for AICA Driver request
-        start_time = dc_get_time();
+        //start_time = dc_get_time();
         while (snddrv.buf_status != SNDDRV_STATUS_NEEDBUF)
             thd_pass();
-        end_time = dc_get_time();
-        printf("Wait for AICA Driver: %u ms\n", end_time - start_time);
+        // end_time = dc_get_time();
+        // printf("Wait for AICA Driver: %u ms\n", end_time - start_time);
 
         // Measure time taken by waiting for RoQ Decoder
-        start_time = dc_get_time();
-        while (pcm_size < snddrv.pcm_needed)
+        //start_time = dc_get_time();
+        //while (pcm_size < snddrv.pcm_needed)
+        while (decode_buffer.size < snddrv.pcm_needed)
         {
             if (snddrv.dec_status == SNDDEC_STATUS_DONE)
                 goto done;
             thd_pass();
         }
-        end_time = dc_get_time();
-        printf("Wait for RoQ Decoder: %u ms\n", end_time - start_time);
+        // end_time = dc_get_time();
+        // printf("Wait for RoQ Decoder: %u ms\n", end_time - start_time);
 
         // Measure time taken by copying PCM samples
-        start_time = dc_get_time();
+        //start_time = dc_get_time();
         mutex_lock(&pcm_mut);
-        memcpy(snddrv.pcm_buffer, pcm_buf, snddrv.pcm_needed);
-        pcm_size -= snddrv.pcm_needed;
-        memmove(pcm_buf, pcm_buf + snddrv.pcm_needed, pcm_size);
+        // memcpy(snddrv.pcm_buffer, pcm_buf, snddrv.pcm_needed);
+        // pcm_size -= snddrv.pcm_needed;
+        // memmove(pcm_buf, pcm_buf + snddrv.pcm_needed, pcm_size);
+
+        ring_buffer_read(&decode_buffer, (unsigned char*)snddrv.pcm_buffer, snddrv.pcm_needed);
+
         mutex_unlock(&pcm_mut);
-        end_time = dc_get_time();
-        printf("Copy PCM Samples: %u ms\n", end_time - start_time);
+        // end_time = dc_get_time();
+        // printf("Copy PCM Samples: %u ms\n", end_time - start_time);
 
         // Measure time taken by informing AICA Driver
-        start_time = dc_get_time();
+        //start_time = dc_get_time();
         snddrv.buf_status = SNDDRV_STATUS_HAVEBUF;
-        end_time = dc_get_time();
-        printf("Inform AICA Driver: %u ms\n", end_time - start_time);
+        //end_time = dc_get_time();
+        //printf("Inform AICA Driver: %u ms\n", end_time - start_time);
 
     } while (snddrv.dec_status == SNDDEC_STATUS_STREAMING);
 done:
@@ -220,8 +267,10 @@ static int audio_cb(unsigned char *buf, int size, int channels)
 {
     // Copy the decoded PCM samples to our local PCM buffer
     mutex_lock(&pcm_mut);
-    memcpy(pcm_buf + pcm_size, buf, size);
-    pcm_size += size;
+    // memcpy(pcm_buf + pcm_size, buf, size);
+    // pcm_size += size;
+    ring_buffer_write(&decode_buffer, buf, size);
+
     mutex_unlock(&pcm_mut);
 
     return ROQ_SUCCESS;
@@ -307,12 +356,25 @@ int main()
     // Initialize audio resources and create the audio thread
     if (!audio_init)
     {
-        pcm_buf = malloc(PCM_BUF_SIZE);
-        if (pcm_buf == NULL)
+         /****** New Code *******/
+        decode_buffer.head = 0;
+        decode_buffer.tail = 0;
+        decode_buffer.size = 0;
+        decode_buffer.capacity = PCM_BUF_SIZE;
+        decode_buffer.buffer = malloc(PCM_BUF_SIZE);
+        if (decode_buffer.buffer == NULL)
         {
             printf("Failed to allocate PCM buffer\n");
             return 1;
         }
+        /**********************/
+
+        // pcm_buf = malloc(PCM_BUF_SIZE);
+        // if (pcm_buf == NULL)
+        // {
+        //     printf("Failed to allocate PCM buffer\n");
+        //     return 1;
+        // }
 
         snddrv_start(22050, 2);
         snddrv.dec_status = SNDDEC_STATUS_STREAMING;
@@ -322,8 +384,10 @@ int main()
         if (!audio_thread)
         {
             printf("Failed to create audio thread\n");
-            free(pcm_buf);
-            pcm_buf = NULL;
+            // free(pcm_buf);
+            // pcm_buf = NULL;
+            free(decode_buffer.buffer);
+            decode_buffer.buffer = NULL;
             return 1;
         }
 
@@ -345,9 +409,11 @@ int main()
             printf("Waiting for audio thread to finish...\n");
         }
         thd_destroy(audio_thread); // Destroy the audio thread
-        free(pcm_buf);
-        pcm_buf = NULL;
-        pcm_size = 0;
+        // free(pcm_buf);
+        // pcm_buf = NULL;
+        free(decode_buffer.buffer);
+        decode_buffer.buffer = NULL;
+        //pcm_size = 0;
     }
 
     if (graphics_initialized)
