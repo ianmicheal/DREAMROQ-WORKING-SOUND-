@@ -239,9 +239,6 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         thd_sleep(delay_time);
     }
 
-    // Update the hardware timing for the current frame
-    video_delay = (float)current_time;
-
     pvr_wait_ready();
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_OP_POLY);
@@ -254,6 +251,9 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     pvr_list_finish();
     pvr_scene_finish();
+
+    // Update the hardware timing for the current frame
+    video_delay = (float)current_time;
 
     // Toggle between frames
     current_frame = 1 - current_frame;
