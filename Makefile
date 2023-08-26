@@ -1,6 +1,6 @@
 
 
-KOS_CFLAGS += -std=c99
+KOS_CFLAGS+= -std=c99 -O3  -ffast-math -ffp-contract=fast -fomit-frame-pointer -flto  -mpretend-cmove -falign-loops=4 -falign-labels=2 -falign-functions=32 -falign-jumps=2 -Wno-unused -Wno-format -fno-exceptions -DINLINE=static__inline__   -D__SH4_SINGLE_ONLY__ -D__LITTLE_ENDIAN__
 # Put the filename of the output binary here
 TARGET = dreamroq.elf
 
