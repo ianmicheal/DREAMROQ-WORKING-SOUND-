@@ -6,7 +6,7 @@
  * the KallistiOS operating system.
  */
 /*
-	Name: Iaan micheal
+	Name: Ian micheal
 	Copyright: 
 	Author: Ian micheal
 	Date: 12/08/23 05:17
@@ -63,6 +63,9 @@ static float video_delay;
 // Define the target frame rate
 #define TARGET_FRAME_RATE 30
 
+// Define a preprocessor macro for enabling or disabling debugging
+#define DEBUG_SND_THD 1  // Set to 1 to enable debugging, 0 to disable
+
 static void snd_thd()
 {
     do
@@ -74,7 +77,10 @@ static void snd_thd()
         while (snddrv.buf_status != SNDDRV_STATUS_NEEDBUF)
             thd_pass();
         end_time = dc_get_time();
+        
+        #if DEBUG_SND_THD
         printf("Wait for AICA Driver: %u ms\n", end_time - start_time);
+        #endif
 
         // Measure time taken by waiting for RoQ Decoder
         start_time = dc_get_time();
@@ -85,7 +91,10 @@ static void snd_thd()
             thd_pass();
         }
         end_time = dc_get_time();
+        
+        #if DEBUG_SND_THD
         printf("Wait for RoQ Decoder: %u ms\n", end_time - start_time);
+        #endif
 
         // Measure time taken by copying PCM samples
         start_time = dc_get_time();
@@ -95,18 +104,25 @@ static void snd_thd()
         memmove(pcm_buf, pcm_buf + snddrv.pcm_needed, pcm_size);
         mutex_unlock(&pcm_mut);
         end_time = dc_get_time();
+        
+        #if DEBUG_SND_THD
         printf("Copy PCM Samples: %u ms\n", end_time - start_time);
+        #endif
 
         // Measure time taken by informing AICA Driver
         start_time = dc_get_time();
         snddrv.buf_status = SNDDRV_STATUS_HAVEBUF;
         end_time = dc_get_time();
+        
+        #if DEBUG_SND_THD
         printf("Inform AICA Driver: %u ms\n", end_time - start_time);
+        #endif
 
     } while (snddrv.dec_status == SNDDEC_STATUS_STREAMING);
 done:
     snddrv.dec_status = SNDDEC_STATUS_NULL;
 }
+
 
 static int render_cb(unsigned short *buf, int width, int height, int stride,
                      int texture_height)
