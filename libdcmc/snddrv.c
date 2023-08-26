@@ -90,6 +90,7 @@ static void *snddrv_callback(snd_stream_hnd_t hnd, int len, int * actual) {
     snddrv.pcm_needed = len;       
     snddrv.buf_status = SNDDRV_STATUS_NEEDBUF;
 
+
     /* Wait for the samples to be ready */
     while( snddrv.buf_status != SNDDRV_STATUS_HAVEBUF && snddrv.buf_status != SNDDRV_STATUS_BUFEND )  
            thd_pass();
@@ -148,8 +149,7 @@ int snddrv_start( int rate, int chans ) {
 
     snddrv.drv_status = SNDDRV_STATUS_INITIALIZING;
 
-    snd_stream_init();
-     /*libdcmc/snddrv.c:136: warning: passing arg 1 of `thd_create' from incompatible pointer type  */ //Ian micheal 2020 warning 
+    snd_stream_init(); 
     /* Use the wrapper function here */
     snddrv_thd = thd_create(0, snddrv_thread_wrapper, NULL);
     

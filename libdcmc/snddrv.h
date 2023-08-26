@@ -33,8 +33,8 @@
 #define SNDDRV_STATUS_BUFEND       0x02
 
 /* This seems to be a good number for file seeking on compressed audio */
-#define SEEK_LEN 16384*48
-
+#define SEEK_LEN 16384*128
+#define PCM_BUF_SIZE 2048*2048
 extern struct snddrv snddrv;
 extern struct snddrv_song_info snd_sinfo;
 
