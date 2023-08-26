@@ -59,6 +59,19 @@ typedef struct
 
     unsigned short cb2x2[ROQ_CODEBOOK_SIZE][4];
     unsigned short cb4x4[ROQ_CODEBOOK_SIZE][16];
+
+    // Codebook LUT
+    int cr_r_lut[256];
+    int cb_b_lut[256];
+    int cr_g_lut[256];
+    int cb_g_lut[256];
+    int yy_lut[256];
+
+    // Video Decoding LUT
+    int unpack_4x4_lut[4];
+    int block_offset_lut[4];
+    int subblock_offset_lut[4];
+    int upsample_offset_lut[16];
 } roq_state;
 
 
@@ -101,34 +114,27 @@ static int roq_unpack_quad_codebook(unsigned char *buf, int size, int arg,
         v  = *buf++;
 
         /* convert to RGB565 */
-        for (j = 0; j < 4; j++)
-        {
-            yp = (y[j] - 16) * 1.164;
-            r = (yp + 1.596 * (v - 128)) / 8;
-            g = (yp - 0.813 * (v - 128) - 0.391 * (u - 128)) / 4;
-            b = (yp + 2.018 * (u - 128)) / 8;
+        for (j = 0; j < 4; j++) {
+            yp = state->yy_lut[y[j]];
+            r = yp + state->cr_r_lut[v];
+            g = yp + state->cr_g_lut[v] + state->cb_g_lut[u];  
+            b = yp + state->cb_b_lut[u]; 
 
-            if (r < 0) r = 0;
-            if (r > 31) r = 31;
-            if (g < 0) g = 0;
-            if (g > 63) g = 63;
-            if (b < 0) b = 0;
-            if (b > 31) b = 31;
+            r = (r < 0) ? 0 : ((r > 255) ? 255 : r);
+            g = (g < 0) ? 0 : ((g > 255) ? 255 : g);
+            b = (b < 0) ? 0 : ((b > 255) ? 255 : b);
 
-            state->cb2x2[i][j] = (
-                (r << 11) | 
-                (g <<  5) |
-                (b <<  0) );
+            state->cb2x2[i][j] = ((unsigned short)r & 0xf8) << 8 | 
+                                 ((unsigned short)g & 0xfc) << 3 | 
+                                 ((unsigned short)b & 0xf8) >> 3;
         }
     }
 
     /* unpack the 4x4 vectors */
-    for (i = 0; i < count4x4; i++)
-    {
-        for (j = 0; j < 4; j++)
-        {
+    for (i = 0; i < count4x4; i++) {
+        for (j = 0; j < 4; j++) {
             v2x2 = state->cb2x2[*buf++];
-            v4x4 = state->cb4x4[i] + (j / 2) * 8 + (j % 2) * 2;
+            v4x4 = state->cb4x4[i] + state->unpack_4x4_lut[j];
             v4x4[0] = v2x2[0];
             v4x4[1] = v2x2[1];
             v4x4[4] = v2x2[2];
@@ -219,7 +225,7 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
             mb_offset = line_offset + mb_x * 16;
             for (block = 0; block < 4 && status == ROQ_SUCCESS; block++)
             {
-                block_offset = mb_offset + (block / 2 * 8 * stride) + (block % 2 * 8);
+                block_offset = mb_offset + state->block_offset_lut[block];
                 /* each 8x8 block gets a mode */
                 GET_MODE();
                 switch (mode)
@@ -258,7 +264,7 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
                     for (i = 0; i < 4*4; i++)
                     {
                         this_ptr = this_frame + block_offset +
-                            (i / 4 * 2 * stride) + (i % 4 * 2);
+                            state->upsample_offset_lut[i];
                         this_ptr[0] = *vector16;
                         this_ptr[1] = *vector16;
                         this_ptr[stride+0] = *vector16;
@@ -270,7 +276,7 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
     case 3:  /* CCC: subdivide into 4 subblocks */
                     for (subblock = 0; subblock < 4; subblock++)
                     {
-                        subblock_offset = block_offset + (subblock / 2 * 4 * stride) + (subblock % 2 * 4);
+                        subblock_offset = block_offset + state->subblock_offset_lut[subblock];
 
                         GET_MODE();
                         switch (mode)
@@ -411,13 +417,6 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
     framerate = LE_16(&read_buffer[6]);
    printf("RoQ file plays at %d frames/sec\n", framerate);
 	
-    /* Initialize Audio SQRT Look-Up Table */
-    for(i = 0; i < 128; i++)
-    {
-        roq_audio.snd_sqr_arr[i] = i * i;
-        roq_audio.snd_sqr_arr[i + 128] = -(i * i);
-    }
-
 
 status = ROQ_SUCCESS;
 while (1)
@@ -484,6 +483,39 @@ while (1)
                 while (state.stride < state.width)
                     state.stride <<= 1;
             }
+
+            /* Initialize Audio SQRT Look-Up Table */
+            for(i = 0; i < 128; i++)
+            {
+                roq_audio.snd_sqr_arr[i] = i * i;
+                roq_audio.snd_sqr_arr[i + 128] = -(i * i);
+            }
+
+            // Initialize YUV420 -> RGB Math Look-Up Table helpers
+            for(i = 0; i < 256; i++) {
+                state.yy_lut[i] = 1.164 * (i - 16);
+                state.cr_r_lut[i] = 1.596 * (i - 128);
+                state.cb_b_lut[i] = 2.017 * (i - 128);
+                state.cr_g_lut[i] = -0.813 * (i - 128);
+                state.cb_g_lut[i] = -0.392 * (i - 128);
+            }
+
+            for(i = 0; i < 4; i++) {
+                state.block_offset_lut[i] = (i / 2 * 8 * state.stride) + (i % 2 * 8);
+            }
+
+            for(i = 0; i < 4; i++) {
+                state.subblock_offset_lut[i] = (i / 2 * 4 * state.stride) + (i % 2 * 4);
+            }
+
+            for(i = 0; i < 4; i++) {
+                state.unpack_4x4_lut[i] = (i / 2) * 8 + (i % 2) * 2;
+            }
+
+            for(i = 0; i < 16; i++) {
+                state.upsample_offset_lut[i] = (i / 4 * 2 * state.stride) + (i % 4 * 2);
+            }
+
             if (state.height < 8 || state.height > 1024)
                 status = ROQ_INVALID_DIMENSION;
             else
