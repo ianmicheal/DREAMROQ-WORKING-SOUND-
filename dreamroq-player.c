@@ -47,8 +47,7 @@
 #include <dc/sound/sound.h>
 #include <stdio.h>
 
-/* Audio Global variables */
-#define   PCM_BUF_SIZE (1024 * 1024) 
+
 static unsigned char *pcm_buf = NULL;
 static int pcm_size = 0;
 #define AUDIO_THREAD_PRIO 0
@@ -61,10 +60,10 @@ static int current_frame = 0;
 static int graphics_initialized = 0;
 static float video_delay;
 // Define the target frame rate
-#define TARGET_FRAME_RATE 30
+#define TARGET_FRAME_RATE 31
 
 // Define a preprocessor macro for enabling or disabling debugging
-#define DEBUG_SND_THD 1  // Set to 1 to enable debugging, 0 to disable
+#define DEBUG_SND_THD 0  // Set to 1 to enable debugging, 0 to disable
 
 static void snd_thd()
 {
@@ -74,6 +73,7 @@ static void snd_thd()
 
         // Measure time taken by waiting for AICA Driver request
         start_time = dc_get_time();
+        
         while (snddrv.buf_status != SNDDRV_STATUS_NEEDBUF)
             thd_pass();
         end_time = dc_get_time();
@@ -193,9 +193,10 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
         graphics_initialized = 1;
     }
+   dcache_flush_range((uintptr_t)textures[current_frame], (uintptr_t)(textures[current_frame] + stride * texture_height * 2));
 
     // Send the video frame as a texture over to video RAM
-    pvr_txr_load(buf, textures[current_frame], stride * texture_height * 2);
+   pvr_txr_load_dma(buf, textures[current_frame], stride * texture_height * 2, 1, NULL, 0);
 
     // Calculate the elapsed time since the last frame
     unsigned int current_time = dc_get_time();
@@ -208,8 +209,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         thd_sleep(delay_time);
     }
 
-    // Update the hardware timing for the current frame
-    video_delay = (float)current_time;
+
 
     pvr_wait_ready();
     pvr_scene_begin();
@@ -223,7 +223,8 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     pvr_list_finish();
     pvr_scene_finish();
-
+    // Update the hardware timing for the current frame
+    video_delay = (float)current_time;
     // Toggle between frames
     current_frame = 1 - current_frame;
 
@@ -254,7 +255,7 @@ static void *snd_thd_wrapper(void *arg)
 
     unsigned int end_time = dc_get_time();
     unsigned int elapsed_time = end_time - start_time;
-    printf("Audio Thread: Finished (Time: %u ms)\n", elapsed_time);
+  //  printf("Audio Thread: Finished (Time: %u ms)\n", elapsed_time);
 
     return NULL;
 }
@@ -262,14 +263,6 @@ static void *snd_thd_wrapper(void *arg)
 
 static int quit_cb()
 {
-    static int frame_count = 0;
-    static unsigned int last_time = 0;
-    static unsigned int target_frame_time = 1000 / 30; // 30 FPS
-
-    // Calculate time difference since the last frame
-    unsigned int current_time = dc_get_time();
-    unsigned int elapsed_time = current_time - last_time;
-
     // Check if the video has ended and the audio decoding status is done
     if (snddrv.dec_status == SNDDEC_STATUS_DONE) {
         printf("Exiting due to audio decoding status\n");
@@ -284,24 +277,9 @@ static int quit_cb()
     }
     MAPLE_FOREACH_END()
 
-    // Delay if necessary to maintain the target frame rate
-    if (elapsed_time < target_frame_time) {
-        unsigned int delay_time = target_frame_time - elapsed_time;
-        thd_sleep(delay_time);
-    }
-
-    // Print FPS information every second
-    if (elapsed_time >= 1000) {
-     //   double fps = (double)frame_count / (elapsed_time / 1000.0);
-     //   printf("FPS: %.2lf\n", fps);
-
-        frame_count = 0;
-        last_time = current_time;
-    }
-
-  //  printf("Continuing loop\n");
+  // printf("Continuing loop\n");
     fflush(stdout); // Flush the output buffer to ensure immediate display
-    frame_count++;
+   
 
     return 0; // Continue the loop
 }
@@ -357,7 +335,7 @@ int main()
         snddrv.dec_status = SNDDEC_STATUS_DONE;
         while (snddrv.dec_status != SNDDEC_STATUS_NULL)
         {
-            thd_sleep(1);
+            thd_sleep(100);
             printf("Waiting for audio thread to finish...\n");
         }
         thd_destroy(audio_thread); // Destroy the audio thread
@@ -374,8 +352,12 @@ int main()
     }
 
     printf("Exiting main()\n");
+    pvr_shutdown(); // Clean up PVR resources
+    vid_shutdown(); // This function reinitializes the video system to what dcload and friends expect it to be.
+    arch_exit();
     return 0;
 }
+
 
 
 
