@@ -11,6 +11,9 @@ Name: Ian micheal
 Date: 15/08/23 19:24
 #### DreamRoQ Player
 
+Pvr dma glitch fixed mask added no static on sound on sync 
+ready to use.
+
 PVRDMA UPDATE VIDEO BELOW
 
 
