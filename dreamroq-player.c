@@ -136,7 +136,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 {
     pvr_poly_cxt_t cxt;
     static pvr_poly_hdr_t hdr[2];
-    static pvr_vertex_t vert[4];
+    static pvr_vertex_t vert[4]; // Keep 4 vertices for the main frame
 
     float ratio;
     // screen coordinates of upper left and bottom right corners
@@ -161,15 +161,18 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
         // Calculate drawing coordinates
         ratio = 640.0 / width;
+     // Calculate drawing coordinates with increased coverage at the bottom
+     // Ian micheal added mask to bottom of screen hiding the glitch
         ul_x = 0;
         br_x = (int)(ratio * stride);
         ul_y = (int)((480 - ratio * height) / 2);
-        br_y = ul_y + (int)(ratio * texture_height);
+        br_y = ul_y + (int)(ratio * texture_height) + 20; // Increase the coverage by adding 20 pixels to the height
+
 
         // Set common vertex properties
         for (int i = 0; i < 4; i++) {
             vert[i].z = 1.0f;
-            vert[i].argb = PVR_PACK_COLOR(1.0f, 1.0f, 1.0f, 1.0f);
+            vert[i].argb = PVR_PACK_COLOR(1.0f, 1.0f, 1.0f, 1.0f); // White color for the main frame
             vert[i].oargb = 0;
             vert[i].flags = (i < 3) ? PVR_CMD_VERTEX : PVR_CMD_VERTEX_EOL;
         }
@@ -200,10 +203,11 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
         graphics_initialized = 1;
     }
-   dcache_flush_range((uintptr_t)textures[current_frame], (uintptr_t)(textures[current_frame] + stride * texture_height * 2));
+
+    dcache_flush_range((uintptr_t)textures[current_frame], (uintptr_t)(textures[current_frame] + stride * texture_height * 2));
 
     // Send the video frame as a texture over to video RAM
-   pvr_txr_load_dma(buf, textures[current_frame], stride * texture_height * 2, 1, NULL, 0);
+    pvr_txr_load_dma(buf, textures[current_frame], stride * texture_height * 2, 1, NULL, 0);
 
     // Calculate the elapsed time since the last frame
     unsigned int current_time = dc_get_time();
@@ -215,8 +219,6 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         unsigned int delay_time = target_frame_time - elapsed_time;
         thd_sleep(delay_time);
     }
-
-
 
     pvr_wait_ready();
     pvr_scene_begin();
@@ -230,7 +232,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     pvr_list_finish();
     pvr_scene_finish();
-   /// PVR_DMA_WAIT();
+
     // Update the hardware timing for the current frame
     video_delay = (float)current_time;
     // Toggle between frames
@@ -238,6 +240,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     return ROQ_SUCCESS;
 }
+
 
 
 
