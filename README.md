@@ -2,11 +2,17 @@
 
 DREAMROQ-WORKING-SOUND
 ===============================
+Update 
 Name: Ian micheal
-Copyright: 
-Author: 
+Date: 26/08/23 20:43
+Description: PVR DMA
+
+Name: Ian micheal
 Date: 15/08/23 19:24
 #### DreamRoQ Player
+
+PVRDMA UPDATE VIDEO BELOW
+
 
 This is a modified version of the DreamRoQ player with various improvements:
 
