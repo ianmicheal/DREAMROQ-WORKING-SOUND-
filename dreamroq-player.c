@@ -61,6 +61,8 @@ static int graphics_initialized = 0;
 static float video_delay;
 // Define the target frame rate
 #define TARGET_FRAME_RATE 31
+#define MB	(1024*1024)
+#define PVR_DMA_WAIT() while(!pvr_dma_ready());
 
 // Define a preprocessor macro for enabling or disabling debugging
 #define DEBUG_SND_THD 0  // Set to 1 to enable debugging, 0 to disable
@@ -223,6 +225,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     pvr_list_finish();
     pvr_scene_finish();
+    PVR_DMA_WAIT();
     // Update the hardware timing for the current frame
     video_delay = (float)current_time;
     // Toggle between frames
@@ -284,19 +287,26 @@ static int quit_cb()
     return 0; // Continue the loop
 }
 
+	pvr_init_params_t params = {
+		{ PVR_BINSIZE_32, PVR_BINSIZE_0, PVR_BINSIZE_0, PVR_BINSIZE_0, PVR_BINSIZE_0 },
+		2.6 * MB,
+		0,	//dma
+		0,	//fsaa
+		1	//autosort disable
+	};
 
 
 int main()
 {
     int status = 0;
 
-    vid_set_mode(DM_640x480, PM_RGB565);
-    pvr_init_defaults();
+   vid_set_mode(DM_640x480, PM_RGB565);
+    pvr_init(&params);  /* Init the PVR */
 
     printf("dreamroq_play(C) Multimedia Mike Melanson & Josh PH3NOM Pearson 2011\n");
     printf("dreamroq_play(C) Ian micheal Up port to Kos2.0 sound fix and threading\n");
     printf("dreamroq_play(C) Ian micheal Kos2.0 free and exit when loop ends 2023\n");
-    printf("dreamroq_play(C) Ian micheal redo frame limit code and rendering and comment what it does 2023\n");
+    printf("dreamroq_play(C) Ian micheal kos filesystem pvr dma 2023 8/26/2023\n");
     
     // Initialize audio resources and create the audio thread
     if (!audio_init)
@@ -337,8 +347,11 @@ int main()
         {
             thd_sleep(100);
             printf("Waiting for audio thread to finish...\n");
+            fflush(stdout); // Flush the output buffer to ensure immediate display
         }
+        mutex_unlock(&pcm_mut);
         thd_destroy(audio_thread); // Destroy the audio thread
+         printf("Destroy the audio thread...\n");
         free(pcm_buf);
         pcm_buf = NULL;
         pcm_size = 0;
@@ -349,12 +362,16 @@ int main()
         pvr_mem_free(textures[0]);
         pvr_mem_free(textures[1]);
         printf("Freed PVR memory\n");
+        fflush(stdout); // Flush the output buffer to ensure immediate display
+        thd_sleep(10);
     }
 
     printf("Exiting main()\n");
+    fflush(stdout); // Flush the output buffer to ensure immediate display
     pvr_shutdown(); // Clean up PVR resources
     vid_shutdown(); // This function reinitializes the video system to what dcload and friends expect it to be.
     arch_exit();
+    thd_sleep(10);
     return 0;
 }
 
