@@ -31,6 +31,11 @@
     OUTPUT:> Inform AICA Driver: 0 ms
     OUTPUT:> Wait for AICA Driver: 197 ms
 */
+/*
+	Name: Ian micheal
+	Date: 26/08/23 20:43
+	Description: PVR DMA
+*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -225,7 +230,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
     pvr_list_finish();
     pvr_scene_finish();
-    PVR_DMA_WAIT();
+   /// PVR_DMA_WAIT();
     // Update the hardware timing for the current frame
     video_delay = (float)current_time;
     // Toggle between frames
