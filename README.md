@@ -14,6 +14,10 @@ Date: 15/08/23 19:24
 PVRDMA UPDATE VIDEO BELOW
 
 
+https://github.com/ianmicheal/DREAMROQ-WORKING-SOUND-/assets/59771322/c9ca3400-5dfa-4dfb-ae61-309c024c0f7b
+
+
+
 This is a modified version of the DreamRoQ player with various improvements:
 
 - Redone threading and main structure for improved performance and stability.
