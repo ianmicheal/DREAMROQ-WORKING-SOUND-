@@ -21,6 +21,7 @@
 
 
 
+
 struct roq_audio
 {
      int pcm_samples;
@@ -399,12 +400,15 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
 	// Ian micheal reduces the number of multiplications micro-optimization.
     /* Initialize Audio SQRT Look-Up Table */
 for (i = 0; i < 128; i++) {
-    int squared = i * i;
-    roq_audio.snd_sqr_arr[i] = squared;
-    roq_audio.snd_sqr_arr[i + 128] = -squared;
+    float val = (float)i;
+    float squared = 0.0f;
+
+    // Square the value using fmac
+    squared = MATH_fmac(val, val, squared);
+
+    roq_audio.snd_sqr_arr[i] = (int)squared;
+    roq_audio.snd_sqr_arr[i + 128] = -(int)squared;
 }
-
-
 status = ROQ_SUCCESS;
 while (1)
 {

@@ -35,7 +35,21 @@
 
 
 #define ROQ_CODEBOOK_SIZE 256
-extern void optimizeFunction(uint8_t *last_frame, uint8_t *this_frame, int block_offset, int stride, int mx, int my);
+// Optmized math functions from DreamhaL moop my mentor 
+// This math module is hereby released into the public domain in the hope that it
+// may prove useful. Now go hit 60 fps! :)
+//
+// --Moopthehedgehog, January 2020
+static inline __attribute__((always_inline)) float MATH_fmac(float a, float b, float c)
+{
+  __asm__ __volatile__ ("fmac fr0, %[floatb], %[floatc]\n"
+    : [floatc] "+f" (c) // outputs, "+" means r/w
+    : "w" (a), [floatb] "f" (b) // inputs
+    : // no clobbers
+  );
+
+  return c;
+}
 
 /* The library calls this function when it has a frame ready for display. */
 typedef int (*render_callback)(unsigned short *buf, int width, int height,
