@@ -108,25 +108,22 @@ static int roq_unpack_quad_codebook(unsigned char *buf, int size, int arg,
         }
     }
 
-/* unpack the 4x4 vectors */
-/*Ian micheal reduces the number of repeated calculations by directly indexing into the cb4x4 array using v4x4_base.
- It also reduces the number of memory accesses by performing the assignment directly within the loop body. */
-for (i = 0; i < count4x4; i++)
-{
-    v2x2 = state->cb2x2[*buf++];
-    unsigned short *v4x4_base = state->cb4x4[i];
-
-    for (j = 0; j < 4; j++)
+    /* unpack the 4x4 vectors */
+    for (i = 0; i < count4x4; i++)
     {
-        v4x4_base[j * 8 + 0] = v2x2[0];
-        v4x4_base[j * 8 + 1] = v2x2[1];
-        v4x4_base[j * 8 + 4] = v2x2[2];
-        v4x4_base[j * 8 + 5] = v2x2[3];
+        for (j = 0; j < 4; j++)
+        {
+            v2x2 = state->cb2x2[*buf++];
+            v4x4 = state->cb4x4[i] + (j / 2) * 8 + (j % 2) * 2;
+            v4x4[0] = v2x2[0];
+            v4x4[1] = v2x2[1];
+            v4x4[4] = v2x2[2];
+            v4x4[5] = v2x2[3];
+        }
     }
+
+    return ROQ_SUCCESS;
 }
-
-return ROQ_SUCCESS;
-
 
 #define GET_BYTE(x) \
     if (index >= size) { \
