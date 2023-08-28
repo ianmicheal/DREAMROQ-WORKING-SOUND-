@@ -19,22 +19,7 @@
 #include <kos/fs.h> // Include the KOS filesystem header
 #include "dreamroqlib.h"
 
-#define RoQ_INFO           0x1001
-#define RoQ_QUAD_CODEBOOK  0x1002
-#define RoQ_QUAD_VQ        0x1011
-#define RoQ_SOUND_MONO     0x1020
-#define RoQ_SOUND_STEREO   0x1021
-#define RoQ_SIGNATURE      0x1084
 
-#define CHUNK_HEADER_SIZE 8
-
-#define LE_16(buf) (*buf | (*(buf+1) << 8))
-#define LE_32(buf) (*buf | (*(buf+1) << 8) | (*(buf+2) << 16) | (*(buf+3) << 24))
-
-#define MAX_BUF_SIZE (64 * 2048)
-
-
-#define ROQ_CODEBOOK_SIZE 256
 
 struct roq_audio
 {
@@ -123,22 +108,25 @@ static int roq_unpack_quad_codebook(unsigned char *buf, int size, int arg,
         }
     }
 
-    /* unpack the 4x4 vectors */
-    for (i = 0; i < count4x4; i++)
-    {
-        for (j = 0; j < 4; j++)
-        {
-            v2x2 = state->cb2x2[*buf++];
-            v4x4 = state->cb4x4[i] + (j / 2) * 8 + (j % 2) * 2;
-            v4x4[0] = v2x2[0];
-            v4x4[1] = v2x2[1];
-            v4x4[4] = v2x2[2];
-            v4x4[5] = v2x2[3];
-        }
-    }
+/* unpack the 4x4 vectors */
+/*Ian micheal reduces the number of repeated calculations by directly indexing into the cb4x4 array using v4x4_base.
+ It also reduces the number of memory accesses by performing the assignment directly within the loop body. */
+for (i = 0; i < count4x4; i++)
+{
+    v2x2 = state->cb2x2[*buf++];
+    unsigned short *v4x4_base = state->cb4x4[i];
 
-    return ROQ_SUCCESS;
+    for (j = 0; j < 4; j++)
+    {
+        v4x4_base[j * 8 + 0] = v2x2[0];
+        v4x4_base[j * 8 + 1] = v2x2[1];
+        v4x4_base[j * 8 + 4] = v2x2[2];
+        v4x4_base[j * 8 + 5] = v2x2[3];
+    }
 }
+
+return ROQ_SUCCESS;
+
 
 #define GET_BYTE(x) \
     if (index >= size) { \
