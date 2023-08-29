@@ -542,11 +542,10 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
 
             default:
                 break;
-    // Check the quit condition again after processing the current chunk
-    if (quit_cb && quit_cb())
-        break;
+                
         }
     }
+    printf("File ended and quit\n");
     free(state.frame[0]);
     free(state.frame[1]);
     fs_close(f);
