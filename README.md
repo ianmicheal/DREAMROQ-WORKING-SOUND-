@@ -14,7 +14,7 @@ Code From TapamN and moop marked in comments.
 Thanks to both which i admire and learn from.
 Starting now all the micro and other optimizing i always do like  Eliminate Redundant Calculations
 ,Precompute Constants,Loop Fission,Minimize Conditional Checks.. My normal path after something is just hitting what i want i start on these.
-
+I use Dreamsdk 3.0 dev and compiler gcc4.7.4 and there is zero warnings or errors.
 Pvr dma glitch fixed mask added no static on sound on sync 
 ready to use.
 
