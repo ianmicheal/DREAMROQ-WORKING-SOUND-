@@ -542,6 +542,9 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
 
             default:
                 break;
+    // Check the quit condition again after processing the current chunk
+    if (quit_cb && quit_cb())
+        break;
         }
     }
     free(state.frame[0]);

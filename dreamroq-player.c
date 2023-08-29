@@ -295,11 +295,8 @@ static int quit_cb()
     }
     MAPLE_FOREACH_END()
 
-  // printf("Continuing loop\n");
-    fflush(stdout); // Flush the output buffer to ensure immediate display
-   
-
-    return 0; // Continue the loop
+    // Continue the loop
+    return 0;
 }
 
 	pvr_init_params_t params = {
