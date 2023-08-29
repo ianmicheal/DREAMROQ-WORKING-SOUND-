@@ -40,6 +40,8 @@
 // may prove useful. Now go hit 60 fps! :)
 //
 // --Moopthehedgehog, January 2020
+// I dont care about you magical compiler i trust moop who tested for 4 months
+// Reverse engineering and is master at low level asm and sh4 cpu
 static inline __attribute__((always_inline)) float MATH_fmac(float a, float b, float c)
 {
   __asm__ __volatile__ ("fmac fr0, %[floatb], %[floatc]\n"
