@@ -51,6 +51,83 @@ static inline __attribute__((always_inline)) float MATH_fmac(float a, float b, f
   return c;
 }
 
+static inline void CacheWriteback(uint32_t addr) {
+	__asm__ __volatile__("ocbwb @%0" : : "r" (addr) : "memory");
+}
+static inline void CachePurge(uint32_t addr) {
+	__asm__ __volatile__("ocbp @%0" : : "r" (addr) : "memory");
+}
+static inline void CacheInvalidate(uint32_t addr) {
+	__asm__ __volatile__("ocbi @%0" : : "r" (addr) : "memory");
+}
+
+// From TapamNs fbdma driver
+#define CACHE_SIZE	(16*1024)
+static char CacheFlushArea[CACHE_SIZE] __attribute__ ((aligned (32)));
+
+typedef enum {
+	PCT_PURGE_ALL,
+	PCT_PURGE_OCI0,
+	PCT_PURGE_OCI1,
+} pctPurgeType;
+static inline void sh4Invalidate(const void *addr) {
+	__asm__ __volatile__("ocbi @%0" : : "r" (addr) : "memory");
+}
+static inline void sh4Purge(const void *addr) {
+	__asm__ __volatile__("ocbp @%0" : : "r" (addr) : "memory");
+}
+static inline void sh4CachelineAllocate(void *addr, int value) {
+	register int __value  __asm__("r0") = value;
+	__asm__ __volatile__ (
+		"movca.l r0,@%0\n\t"
+		:  
+		: "r" (addr), "r" (__value)
+		: "memory"  );
+}
+static void pctPurgeCache(pctPurgeType banks) {
+	volatile unsigned int *CCR = (void*)0xff00001c;
+	unsigned int ccrval = *CCR;
+	unsigned int size = CACHE_SIZE;
+	//Purges the cache by using MOVCA to flush any existing dirty cacheline, then
+	//invalidates cacheline to clear dirty bit so MOVCA garbage can't trigger
+	//a writeback later
+	
+	//Treat any invalid value as request to flush entire cache
+	if (banks > PCT_PURGE_OCI1)
+		banks = PCT_PURGE_ALL;
+	
+	//Check OCINDEX
+	if (ccrval & (1<<7)) {
+		//Each bank is half size of full cache
+		size >>= 1;
+	} else {
+		//If not using OCINDEX, ignore banks parameter, only purge cache once
+		banks = PCT_PURGE_OCI0;
+	}
+	
+	//Check OCRAM
+	if (ccrval & (1<<5)) {
+		//Usable cache size is halved
+		size >>= 1;
+	}
+	//~ printf("size %i ", size);
+	if (banks != PCT_PURGE_OCI1) {
+		void *ptr = CacheFlushArea;
+		for(size_t i = 0; i < size; i += 32) {
+			sh4CachelineAllocate(ptr + i, 0);
+			sh4Invalidate(ptr + i);
+		}
+	}
+	
+	if (banks != PCT_PURGE_OCI0) {
+		void *ptr = (CacheFlushArea);
+		for(size_t i = 0; i < size; i += 32) {
+			sh4CachelineAllocate(ptr + i, 0);
+			sh4Invalidate(ptr + i);
+		}
+	}
+}
+
 /* The library calls this function when it has a frame ready for display. */
 typedef int (*render_callback)(unsigned short *buf, int width, int height,
     int stride, int texture_height);

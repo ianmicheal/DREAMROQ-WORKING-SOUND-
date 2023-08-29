@@ -155,7 +155,7 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         // Precompile the poly headers
         for (int i = 0; i < 2; i++) {
             pvr_poly_cxt_txr(&cxt, PVR_LIST_OP_POLY, PVR_TXRFMT_RGB565 | PVR_TXRFMT_NONTWIDDLED,
-                             stride, texture_height, textures[i], PVR_FILTER_NONE);
+                             stride, texture_height, textures[i], PVR_FILTER_BILINEAR);
             pvr_poly_compile(&hdr[i], &cxt);
         }
 
@@ -203,9 +203,15 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
 
         graphics_initialized = 1;
     }
-
-    dcache_flush_range((uintptr_t)textures[current_frame], (uintptr_t)(textures[current_frame] + stride * texture_height * 2));
-
+  //  PVR_DMA_WAIT();
+  // 
+  //TapamN
+  	//If OCI is used, purge only the correct side of the cache
+	//If OCI is not used, pctPurgeCache will purge the entire cache regardless of parameter
+	// Prolly not using this correct just here nothing bad happens when i use it this way.
+	pctPurgeCache((uintptr_t)buf & (1<<25) ? PCT_PURGE_OCI1 : PCT_PURGE_OCI0);
+   // dcache_flush_range((uintptr_t)buf, stride * texture_height * 2); Correct TapamN But causes glitch in sound when tales apears 
+    dcache_flush_range((uintptr_t)textures[current_frame], (uintptr_t)(textures[current_frame] + stride * texture_height * 2));// wrong but works better no glitch in sound have to find out why?
     // Send the video frame as a texture over to video RAM
     pvr_txr_load_dma(buf, textures[current_frame], stride * texture_height * 2, 1, NULL, 0);
 
@@ -219,8 +225,9 @@ static int render_cb(unsigned short *buf, int width, int height, int stride,
         unsigned int delay_time = target_frame_time - elapsed_time;
         thd_sleep(delay_time);
     }
-
+ 
     pvr_wait_ready();
+ //   pvr_check_ready (); uncomment  for perfect sync
     pvr_scene_begin();
     pvr_list_begin(PVR_LIST_OP_POLY);
 
@@ -303,7 +310,7 @@ static int quit_cb()
 		1	//autosort disable
 	};
 
-
+KOS_INIT_FLAGS(INIT_DEFAULT|INIT_MALLOCSTATS);
 int main()
 {
     int status = 0;
@@ -353,33 +360,38 @@ int main()
         snddrv.dec_status = SNDDEC_STATUS_DONE;
         while (snddrv.dec_status != SNDDEC_STATUS_NULL)
         {
-            thd_sleep(100);
+        	snddrv_exit();
+        	snd_stream_shutdown();
+            thd_sleep(50);
             printf("Waiting for audio thread to finish...\n");
             fflush(stdout); // Flush the output buffer to ensure immediate display
         }
         mutex_unlock(&pcm_mut);
         thd_destroy(audio_thread); // Destroy the audio thread
-         printf("Destroy the audio thread...\n");
+        printf("Destroy the audio thread...\n");
         free(pcm_buf);
         pcm_buf = NULL;
         pcm_size = 0;
     }
 
     if (graphics_initialized)
-    {
+    {   vid_clear(0,0,0);
         pvr_mem_free(textures[0]);
         pvr_mem_free(textures[1]);
         printf("Freed PVR memory\n");
         fflush(stdout); // Flush the output buffer to ensure immediate display
         thd_sleep(10);
     }
-
+    thd_sleep(2000);
     printf("Exiting main()\n");
     fflush(stdout); // Flush the output buffer to ensure immediate display
     pvr_shutdown(); // Clean up PVR resources
     vid_shutdown(); // This function reinitializes the video system to what dcload and friends expect it to be.
+    malloc_stats();
+    //Ending
+	spu_disable();
     arch_exit();
-    thd_sleep(10);
+    
     return 0;
 }
 

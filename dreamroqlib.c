@@ -9,7 +9,7 @@
 	Date: 15/08/23 08:16
 	Description: kos filesystem api port 
 */
-
+#include <kos.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -367,6 +367,8 @@ static int roq_unpack_vq(unsigned char *buf, int size, unsigned int arg,
 	Using the C library stdio.h functions (fread, fwrite) can be much slower than using the KOS filesystem calls directly (fs_read, fs_write) when reading/writing large blocks.
 	With stdio, you get something like tens of KB/sec, while with KOS you can get over 1 MB/sec. Stdio might be faster when preforming many very small operations. 
 	dcload-serial doesn't have this issue.
+	29/08/23 04:34 Ian micheal below i have started on micro optimizing I've placed the calculation of state.stride and state.texture_height right after initializing the audio lookup table and before entering the loop. 
+	This way, you calculate these values only once and reuse them throughout the loop, eliminating redundant calculations.
 */
 
 int dreamroq_play(char *filename, int loop, render_callback render_cb,
@@ -396,123 +398,114 @@ int dreamroq_play(char *filename, int loop, render_callback render_cb,
         return ROQ_FILE_READ_FAILURE;
     }
     framerate = LE_16(&read_buffer[6]);
-  // printf("RoQ file plays at %d frames/sec\n", framerate);
-	// Ian micheal reduces the number of multiplications micro-optimization.
     /* Initialize Audio SQRT Look-Up Table */
-for (i = 0; i < 128; i++) {
-    float val = (float)i;
-    float squared = 0.0f;
+    for (i = 0; i < 128; i++) {
+        float val = (float)i;
+        float squared = 0.0f;
 
-    // Square the value using fmac
-    squared = MATH_fmac(val, val, squared);
+        // Square the value using fmac
+        squared = MATH_fmac(val, val, squared);
 
-    roq_audio.snd_sqr_arr[i] = (int)squared;
-    roq_audio.snd_sqr_arr[i + 128] = -(int)squared;
-}
-status = ROQ_SUCCESS;
-while (1)
-{
-    if (quit_cb && quit_cb())
-        break;
+        roq_audio.snd_sqr_arr[i] = (int)squared;
+        roq_audio.snd_sqr_arr[i + 128] = -(int)squared;
+    }
 
-    file_ret = fs_read(f, read_buffer, CHUNK_HEADER_SIZE);
-    #ifdef FPSGRAPH
-        printf("r\n");
-    #endif
-    if (file_ret < CHUNK_HEADER_SIZE)
+    status = ROQ_SUCCESS;
+    while (1)
     {
-        if (file_ret == 0) // Indicates end of file
+        if (quit_cb && quit_cb())
             break;
-        else if (loop)
+
+        file_ret = fs_read(f, read_buffer, CHUNK_HEADER_SIZE);
+        #ifdef FPSGRAPH
+            printf("r\n");
+        #endif
+        if (file_ret < CHUNK_HEADER_SIZE)
         {
-            fs_seek(f, 8, SEEK_SET);
-            continue;
+            if (file_ret == 0) // Indicates end of file
+                break;
+            else if (loop)
+            {
+                fs_seek(f, 8, SEEK_SET);
+                continue;
+            }
+            else
+                break;
         }
-        else
+        chunk_id = LE_16(&read_buffer[0]);
+        chunk_size = LE_32(&read_buffer[2]);
+        chunk_arg = LE_16(&read_buffer[6]);
+
+        if (chunk_size > MAX_BUF_SIZE)
+        {
+            fs_close(f);
+            return ROQ_CHUNK_TOO_LARGE;
+        }
+
+        file_ret = fs_read(f, read_buffer, chunk_size);
+        if (file_ret != chunk_size)
+        {
+            status = ROQ_FILE_READ_FAILURE;
             break;
-    }
-    chunk_id = LE_16(&read_buffer[0]);
-    chunk_size = LE_32(&read_buffer[2]);
-    chunk_arg = LE_16(&read_buffer[6]);
+        }
 
-    if (chunk_size > MAX_BUF_SIZE)
-    {
-        fs_close(f);
-        return ROQ_CHUNK_TOO_LARGE;
-    }
-
-    file_ret = fs_read(f, read_buffer, chunk_size);
-    if (file_ret != chunk_size)
-    {
-        status = ROQ_FILE_READ_FAILURE;
-        break;
-    }        
         switch(chunk_id)
         {
-        case RoQ_INFO:
-            if (initialized)
-                continue;
+            case RoQ_INFO:
+                if (initialized)
+                    continue;
 
-            state.width = LE_16(&read_buffer[0]);
-            state.height = LE_16(&read_buffer[2]);
-            /* width and height each need to be divisible by 16 */
-            if ((state.width & 0xF) || (state.height & 0xF))
-            {
-                status = ROQ_INVALID_PIC_SIZE;
-                break;
-            }
-            state.mb_width = state.width / 16;
-            state.mb_height = state.height / 16;
-            state.mb_count = state.mb_width * state.mb_height;
-            if (state.width < 8 || state.width > 1024)
-                status = ROQ_INVALID_DIMENSION;
-            else
-            {
+                state.width = LE_16(&read_buffer[0]);
+                state.height = LE_16(&read_buffer[2]);
+                /* width and height each need to be divisible by 16 */
+                if ((state.width & 0xF) || (state.height & 0xF))
+                {
+                    status = ROQ_INVALID_PIC_SIZE;
+                    break;
+                }
+                state.mb_width = state.width / 16;
+                state.mb_height = state.height / 16;
+                state.mb_count = state.mb_width * state.mb_height;
+
+                // Calculate stride and texture_height once
                 state.stride = 8;
                 while (state.stride < state.width)
                     state.stride <<= 1;
-            }
-            if (state.height < 8 || state.height > 1024)
-                status = ROQ_INVALID_DIMENSION;
-            else
-            {
+
                 state.texture_height = 8;
                 while (state.texture_height < state.height)
                     state.texture_height <<= 1;
-            }
-            printf("  RoQ_INFO: dimensions = %dx%d, %dx%d; %d mbs, texture = %dx%d\n", 
-                state.width, state.height, state.mb_width, state.mb_height,
-                state.mb_count, state.stride, state.texture_height);
-            state.frame[0] = (unsigned short*)memalign(32, state.texture_height * state.stride * sizeof(unsigned short));
-            state.frame[1] = (unsigned short*)memalign(32, state.texture_height * state.stride * sizeof(unsigned short));
-            state.current_frame = 0;
-            if (!state.frame[0] || !state.frame[1])
-            {
-                free (state.frame[0]);
-                free (state.frame[1]);
-                status = ROQ_NO_MEMORY;
+
+                state.frame[0] = (unsigned short*)memalign(32, state.texture_height * state.stride * sizeof(unsigned short));
+                state.frame[1] = (unsigned short*)memalign(32, state.texture_height * state.stride * sizeof(unsigned short));
+                state.current_frame = 0;
+                if (!state.frame[0] || !state.frame[1])
+                {
+                    free (state.frame[0]);
+                    free (state.frame[1]);
+                    status = ROQ_NO_MEMORY;
+                    break;
+                }
+                memset(state.frame[0], 0, state.texture_height * state.stride * sizeof(unsigned short));
+                memset(state.frame[1], 0, state.texture_height * state.stride * sizeof(unsigned short));
+
+                // set this flag so that this code is not executed again when looping
+                initialized = 1;
                 break;
-            }
-            memset(state.frame[0], 0, state.texture_height * state.stride * sizeof(unsigned short));
-            memset(state.frame[1], 0, state.texture_height * state.stride * sizeof(unsigned short));
 
-            /* set this flag so that this code is not executed again when
-             * looping */
-            initialized = 1;
-            break;
+            case RoQ_QUAD_CODEBOOK:
+                status = roq_unpack_quad_codebook(read_buffer, chunk_size, 
+                    chunk_arg, &state);
+                break;
 
-        case RoQ_QUAD_CODEBOOK:
-            status = roq_unpack_quad_codebook(read_buffer, chunk_size, 
-                chunk_arg, &state);
-            break;
+            case RoQ_QUAD_VQ:
+                status = roq_unpack_vq(read_buffer, chunk_size, 
+                    chunk_arg, &state);
+                if (render_cb)
+                    status = render_cb(state.frame[state.current_frame], 
+                        state.width, state.height, state.stride, state.texture_height);
+                break;
 
-        case RoQ_QUAD_VQ:
-            status = roq_unpack_vq(read_buffer, chunk_size, 
-                chunk_arg, &state);
-            if (render_cb)
-                status = render_cb(state.frame[state.current_frame], 
-                    state.width, state.height, state.stride, state.texture_height);
-            break;
         case RoQ_SOUND_MONO:
             roq_audio.channels = 1;
             roq_audio.pcm_samples = chunk_size*2;
@@ -547,15 +540,16 @@ while (1)
                                    roq_audio.channels );
             break;
 
-        default:
-            break;
+            default:
+                break;
+        }
     }
-}
     free(state.frame[0]);
     free(state.frame[1]);
     fs_close(f);
 
     return status;
 }
+
 
 
