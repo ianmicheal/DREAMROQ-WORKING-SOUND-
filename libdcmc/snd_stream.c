@@ -52,8 +52,8 @@ This version is capable of playing back N streams at once, with the limit
 being available CPU time and channels.
 
 */
-
-#define imr_memcpy(dest, source, length)\
+Toshiyasu Morita by Created: 10/8/98 @ 2:15 pm memcpy sample
+#define asm_memcpy(dest, source, length)\
 {\
 	int dummy1, dummy2, dummy3, dummy4, dummy5;\
 	__asm__ volatile ("\
@@ -198,8 +198,8 @@ static void sep_data(void *buffer, int len, int stereo) {
 			x+=2; y++;
 		} while (cnt > 0);
 	} else {
-		imr_memcpy(sep_buffer[0], buffer, len);
-		imr_memcpy(sep_buffer[1], buffer, len);
+		asm_memcpy(sep_buffer[0], buffer, len);
+		asm_memcpy(sep_buffer[1], buffer, len);
 	}
 }
 
